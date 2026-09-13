@@ -379,7 +379,8 @@ function restoreFromSupabase(row, imageBlob) {
 			if (state.countGrid.length && state.countMetrics) {
 				if (!state.countResults.length) runLengthEncode();
 				const step = row.studio_step || 2;
-				if (step >= 6 || (row.walk_index > 0 && state.countResults.length)) {
+				// Walk is step 5 now (was 6). Old projects at Count (5) or Walk (6) both open walk.
+				if (step >= 5 || (row.walk_index > 0 && state.countResults.length)) {
 					state.patternWalk.steps = buildWalkStepsFromCountResults();
 					state.patternWalk.currentIndex = Math.min(
 						row.walk_index || 0,
@@ -393,7 +394,8 @@ function restoreFromSupabase(row, imageBlob) {
 			if (dom.canvasArea) dom.canvasArea.classList.add('has-image');
 			updateBaseDisplayScale();
 
-			const targetStep = row.studio_step || (state.countResults.length ? 5 : 3);
+			let targetStep = row.studio_step || (state.countResults.length ? 5 : 3);
+			if (targetStep > 5) targetStep = 5; // legacy Walk was step 6
 			const { goStep } = await import('./steps.js');
 			goStep(targetStep, { replaceState: true });
 			resolve();
@@ -431,7 +433,7 @@ export async function renderProjectList() {
 		}
 
 		container.innerHTML = '';
-		const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Count', 'Walk'];
+		const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Walk'];
 		for (const proj of records) {
 			let date = '';
 			try {
@@ -439,12 +441,13 @@ export async function renderProjectList() {
 			} catch {
 				/* ignore */
 			}
+			const stepN = proj.studio_step === 6 ? 5 : proj.studio_step;
 			const item = document.createElement('div');
 			item.className =
 				'project-list-item' + (proj.id === state.projectId ? ' is-current' : '');
 			item.innerHTML =
 				`<div class="project-list-name">${escapeHtml(proj.name)}</div>` +
-				`<div class="project-list-meta">${date} · ${stepLabels[proj.studio_step] || 'Saved'}</div>` +
+				`<div class="project-list-meta">${date} · ${stepLabels[stepN] || 'Saved'}</div>` +
 				'<div class="project-list-actions">' +
 				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
 				`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +

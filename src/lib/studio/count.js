@@ -2,7 +2,6 @@ import { state } from './state.js';
 import { dom, countCtx } from './dom.js';
 import { roundRect } from './utils.js';
 import { drawGrid } from './grid.js';
-import { goStep } from './steps.js';
 
 export function runLengthEncode() {
   const { cols, rows } = state.countMetrics;
@@ -91,13 +90,10 @@ export function drawCountOverlay(pw, ph, rows, cols) {
   drawGrid();
 }
 
-export function goCount() {
-  if (!state.countGrid.length || !state.countMetrics) return;
-  runLengthEncode();
-  const { pw, ph, rows, cols } = state.countMetrics;
-  drawCountOverlay(pw, ph, rows, cols);
-  goStep(5);
-  import('./projects.js').then((m) => m.autoSaveProject());
+/** Advance from Colors → Pattern Walk (runs RLE, then opens walk). */
+export async function goCount() {
+  const { enterPatternWalk } = await import('./pattern-walk.js');
+  return enterPatternWalk();
 }
 
 export function toggleCountOverlay() {

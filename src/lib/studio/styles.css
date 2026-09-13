@@ -112,7 +112,7 @@ header .sub {
 
 .sidebar-toggle {
   position: absolute;
-  left: 260px;
+  left: var(--sidebar-width, 320px);
   top: 50%;
   transform: translateY(-50%);
   z-index: 100;
@@ -134,7 +134,7 @@ header .sub {
 .sidebar-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
 .sidebar {
-  width: 260px;
+  width: var(--sidebar-width, 320px);
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -145,7 +145,46 @@ header .sub {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  position: relative;
   transition: width 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
+}
+
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 60;
+  touch-action: none;
+}
+.sidebar-resize::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 36px;
+  border-radius: 1px;
+  background: var(--border);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.sidebar-resize:hover::after,
+.main.sidebar-resizing .sidebar-resize::after {
+  opacity: 1;
+  background: var(--accent);
+}
+
+.main.sidebar-resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+.main.sidebar-resizing .sidebar,
+.main.sidebar-resizing .sidebar-toggle {
+  transition: none;
 }
 
 .main.sidebar-collapsed .sidebar {
@@ -161,6 +200,10 @@ header .sub {
   left: 0;
   border-left: 1px solid var(--border);
   border-radius: 0 4px 4px 0;
+}
+
+.main.sidebar-collapsed .sidebar-resize {
+  display: none;
 }
 
 .panel {
@@ -183,11 +226,24 @@ header .sub {
   padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
 }
 
-#panel4.active,
-#panel5.active,
-#panel6.active {
+#panel4.active {
+  overflow: hidden; /* palette list scrolls; footer buttons stay visible */
+  overflow-x: hidden;
+}
+#panel5.active {
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+#panel4 .palette-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+#panel4 > .info-badge,
+#panel4 > .palette-collapse-row,
+#panel4 > .btn {
+  flex-shrink: 0;
 }
 
 .walk-detail {
@@ -216,11 +272,84 @@ header .sub {
 .walk-nav .btn { flex: 1; }
 
 .field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-dim);
   margin-bottom: 6px;
+}
+
+.help-tip {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  z-index: 1;
+}
+.help-tip:hover,
+.help-tip:focus-within {
+  z-index: 10000;
+}
+
+.help-tip-btn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.help-tip-btn:hover,
+.help-tip-btn:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.help-tip-bubble {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: min(220px, 70vw);
+  padding: 8px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+.help-tip:hover .help-tip-bubble,
+.help-tip:focus-within .help-tip-bubble {
+  opacity: 1;
+  visibility: visible;
 }
 
 input[type=number], input[type=range] {
@@ -267,9 +396,13 @@ input[type=range] { padding: 0; cursor: pointer; accent-color: var(--accent); }
 .row input { flex: 1; min-width: 0; }
 
 .export-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+.export-buttons .btn {
+  flex: 1 1 calc(25% - 6px);
+  min-width: 3.5rem;
 }
 
 .option-row {
@@ -367,7 +500,17 @@ input[type=range] { padding: 0; cursor: pointer; accent-color: var(--accent); }
   line-height: 1.8;
   color: var(--text-dim);
 }
-.info-badge span { color: var(--accent); font-weight: 700; }
+.info-badge span:not(.help-tip):not(.help-tip-bubble) {
+  color: var(--accent);
+  font-weight: 700;
+}
+.info-badge-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  line-height: 1.4;
+}
 
 .separator { border: none; border-top: 1px solid var(--border); }
 
@@ -388,10 +531,9 @@ input[type=range] { padding: 0; cursor: pointer; accent-color: var(--accent); }
 .palette-collapse-row .row input[type="number"] { flex: 1; min-width: 0; }
 
 .palette-scroll {
-  flex: 0 1 auto;
-  max-height: min(40vh, 360px);
-  overflow-y: auto;
+  flex: 1 1 auto;
   min-height: 80px;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
@@ -582,12 +724,12 @@ input[type=color].palette-picker {
 /* Tablet / short viewports: ensure sidebar panel scrolls to bottom controls */
 @media (max-width: 1024px), (max-height: 700px) {
   .sidebar {
-    width: min(300px, 78vw);
+    width: var(--sidebar-width, min(300px, 78vw));
     padding: 16px 14px;
   }
 
   .sidebar-toggle {
-    left: min(300px, 78vw);
+    left: var(--sidebar-width, min(300px, 78vw));
   }
 
   .main.sidebar-collapsed .sidebar-toggle {
@@ -598,7 +740,6 @@ input[type=color].palette-picker {
     padding-bottom: max(48px, env(safe-area-inset-bottom, 0px));
   }
 
-  .palette-scroll,
   .result-scroll {
     max-height: min(28vh, 240px);
   }
@@ -651,13 +792,13 @@ input[type=color].palette-picker {
 }
 
 /* Hide main header + step-bar, show walk topbar when pattern walk is active + sidebar collapsed */
-body:has(#main-layout[data-step="6"].sidebar-collapsed) header {
+body:has(#main-layout[data-step="5"].sidebar-collapsed) header {
   display: none;
 }
-body:has(#main-layout[data-step="6"].sidebar-collapsed) .step-bar {
+body:has(#main-layout[data-step="5"].sidebar-collapsed) .step-bar {
   display: none;
 }
-body:has(#main-layout[data-step="6"].sidebar-collapsed) .walk-topbar {
+body:has(#main-layout[data-step="5"].sidebar-collapsed) .walk-topbar {
   display: flex;
 }
 
@@ -702,8 +843,8 @@ body:has(#main-layout[data-step="6"].sidebar-collapsed) .walk-topbar {
 }
 .walk-float-next:hover:not(:disabled) { background: #d4eb30; }
 
-/* Show float buttons only on step 6 with collapsed sidebar */
-#main-layout[data-step="6"].sidebar-collapsed .walk-float-btn {
+/* Show float buttons only on walk step with collapsed sidebar */
+#main-layout[data-step="5"].sidebar-collapsed .walk-float-btn {
   display: block;
 }
 

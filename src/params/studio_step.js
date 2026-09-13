@@ -5,7 +5,7 @@ export function match(param) {
 		param === 'crop' ||
 		param === 'grid' ||
 		param === 'colors' ||
-		param === 'count' ||
+		param === 'count' || // legacy → Pattern Walk
 		param === 'walk'
 	);
 }

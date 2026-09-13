@@ -170,15 +170,6 @@ async function bakeDisplay(dw, dh) {
   if (state.currentStep === 3) drawGrid();
   if (state.currentStep === 4 && state.countMetrics) drawGrid();
   if (state.currentStep === 5 && state.countMetrics) {
-    const { drawCountOverlay } = await import("./count.js");
-    drawCountOverlay(
-      state.countMetrics.pw,
-      state.countMetrics.ph,
-      state.countMetrics.rows,
-      state.countMetrics.cols,
-    );
-  }
-  if (state.currentStep === 6 && state.countMetrics) {
     const { renderPatternWalkCanvases } = await import("./pattern-walk.js");
     renderPatternWalkCanvases();
   }

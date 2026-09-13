@@ -19,7 +19,7 @@ let syncingFromUrl = false;
 export function applyStep(n) {
 	if (n < 1 || n > STEP_COUNT) return;
 
-	if (n !== 4 && n !== 6) clearHighlight();
+	if (n !== 4 && n !== 5) clearHighlight();
 	state.currentStep = n;
 	const layout = document.getElementById('main-layout');
 	if (layout) layout.dataset.step = String(n);
@@ -36,8 +36,10 @@ export function applyStep(n) {
 		drawGrid();
 	}
 	if (n === 4) renderPaletteUI();
-	if (n === 5) renderResults();
-	if (n === 6) onEnterPatternWalkStep();
+	if (n === 5) {
+		renderResults();
+		onEnterPatternWalkStep();
+	}
 	renderWorkingCanvasDisplay();
 }
 
@@ -81,6 +83,10 @@ export function syncStepFromUrl(slug) {
 	if (n === state.currentStep) {
 		const layout = document.getElementById('main-layout');
 		if (layout && layout.dataset.step !== String(n)) applyStep(n);
+		// Rewrite legacy /studio/count → /studio/walk
+		if (slug === 'count' && browser && window.location.pathname.endsWith('/count')) {
+			goto(studioPathForStep(5), { replaceState: true, noScroll: true, keepFocus: true });
+		}
 		return;
 	}
 
@@ -89,5 +95,9 @@ export function syncStepFromUrl(slug) {
 		applyStep(n);
 	} finally {
 		syncingFromUrl = false;
+	}
+
+	if (slug === 'count' && browser) {
+		goto(studioPathForStep(5), { replaceState: true, noScroll: true, keepFocus: true });
 	}
 }

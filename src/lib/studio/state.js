@@ -46,4 +46,4 @@ export const state = {
 	}
 };
 
-export const STEP_COUNT = 6;
+export const STEP_COUNT = 5;

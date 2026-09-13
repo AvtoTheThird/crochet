@@ -5,8 +5,7 @@ export const STUDIO_STEPS = [
 	{ n: 2, slug: 'crop', label: 'Crop' },
 	{ n: 3, slug: 'grid', label: 'Grid Setup' },
 	{ n: 4, slug: 'colors', label: 'Color Correction' },
-	{ n: 5, slug: 'count', label: 'Count' },
-	{ n: 6, slug: 'walk', label: 'Pattern Walk' }
+	{ n: 5, slug: 'walk', label: 'Pattern Walk' }
 ];
 
 const bySlug = new Map(STUDIO_STEPS.map((s) => [s.slug, s]));
@@ -14,11 +13,13 @@ const byNumber = new Map(STUDIO_STEPS.map((s) => [s.n, s]));
 
 /** @param {string} slug */
 export function isValidStepSlug(slug) {
-	return bySlug.has(slug);
+	// `count` kept as a legacy alias that maps to Pattern Walk
+	return bySlug.has(slug) || slug === 'count';
 }
 
 /** @param {string | undefined} slug */
 export function stepFromSlug(slug) {
+	if (slug === 'count') return 5;
 	return bySlug.get(slug)?.n ?? null;
 }
 

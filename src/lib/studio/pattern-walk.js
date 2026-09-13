@@ -94,23 +94,16 @@ function ensureWalkSteps() {
   if (state.patternWalk.steps.length) return;
   if (state.countResults.length) {
     state.patternWalk.steps = buildWalkStepsFromCountResults();
-    return;
   }
-  const csv = document.getElementById("export-csv")?.value;
-  if (csv) state.patternWalk.steps = buildWalkStepsFromCsv(csv);
 }
 
 export async function enterPatternWalk() {
   if (!state.countGrid.length || !state.countMetrics) return;
   if (!state.countResults.length) runLengthEncode();
   state.patternWalk.steps = buildWalkStepsFromCountResults();
-  if (!state.patternWalk.steps.length) {
-    const csv = document.getElementById("export-csv")?.value;
-    if (csv) state.patternWalk.steps = buildWalkStepsFromCsv(csv);
-  }
   state.patternWalk.currentIndex = 0;
   const { goStep } = await import("./steps.js");
-  goStep(6);
+  goStep(5);
   const { autoSaveProject } = await import("./projects.js");
   autoSaveProject();
 }
@@ -344,7 +337,7 @@ export function initPatternWalkHandlers() {
   document.getElementById("walk-prev")?.addEventListener("click", patternWalkPrev);
   document.getElementById("walk-next")?.addEventListener("click", patternWalkNext);
   document.addEventListener("keydown", (e) => {
-    if (state.currentStep !== 6) return;
+    if (state.currentStep !== 5) return;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
       patternWalkNext();
