@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { dom } from './dom.js';
 import { initWorkingCanvas } from './image.js';
 import { goStep } from './steps.js';
-import { setGridZoom, getDisplaySize } from './viewport.js';
+import { setGridZoom, getDisplaySize, MIN_ZOOM, MAX_ZOOM } from './viewport.js';
 
 export function enableCrop() {
 	dom.cropOverlay.style.display = 'block';
@@ -89,7 +89,7 @@ export function initCropHandlers() {
 			if (!state.workingCanvas || dom.wrapper.style.display === 'none') return;
 			e.preventDefault();
 			const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-			const nextZoom = Math.max(0.25, Math.min(8, state.zoomLevel * factor));
+			const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoomLevel * factor));
 			setGridZoom(nextZoom * 100, e.clientX, e.clientY);
 		},
 		{ passive: false }

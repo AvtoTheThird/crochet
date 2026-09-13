@@ -1,9 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { initStudio, studioActions } from '$lib/studio/index.js';
 	import { syncStepFromUrl } from '$lib/studio/steps.js';
+	import { auth } from '$lib/supabase/session.svelte.js';
+	import { signOut } from '$lib/supabase/auth.js';
 
 	let mainCanvas;
 	let gridCanvas;
@@ -23,8 +25,22 @@
 
 	const a = studioActions;
 
+	const displayName = $derived.by(() => {
+		const p = auth.profile;
+		if (p?.username) return String(p.username);
+		if (p?.first_name || p?.last_name) {
+			return [p.first_name, p.last_name].filter(Boolean).join(' ');
+		}
+		return auth.user?.email ?? '';
+	});
+
 	function toggleSidebar() {
 		sidebarCollapsed = !sidebarCollapsed;
+	}
+
+	async function logout() {
+		await signOut();
+		goto('/');
 	}
 
 	onMount(() => {
@@ -58,15 +74,21 @@
 		<h1>PixelCount Studio</h1>
 		<div class="sub">Pixel Art Run-Length Encoder</div>
 	</div>
-	<button
-		type="button"
-		class="btn btn-secondary"
-		id="save-project-btn"
-		onclick={() => a.saveProject()}
-		title="Save project (also auto-saves when advancing stages)"
-	>
-		💾 Save Project
-	</button>
+	<div class="header-actions">
+		{#if displayName}
+			<span class="user-chip">{displayName}</span>
+		{/if}
+		<button
+			type="button"
+			class="btn btn-secondary"
+			id="save-project-btn"
+			onclick={() => a.saveProject()}
+			title="Save project (also auto-saves when advancing stages)"
+		>
+			💾 Save Project
+		</button>
+		<button type="button" class="btn btn-secondary" onclick={logout}>Log out</button>
+	</div>
 </header>
 
 <div id="walk-topbar" class="walk-topbar" aria-hidden="true">
@@ -144,7 +166,7 @@
 			</div>
 			<div class="field-label">Zoom</div>
 			<div class="tolerance-row">
-				<input type="range" id="grid-zoom" min="25" max="800" value="100" />
+				<input type="range" id="grid-zoom" min="25" max="1600" value="100" />
 				<span id="grid-zoom-val">100%</span>
 			</div>
 			<button type="button" class="btn btn-secondary" onclick={() => a.resetGridZoom()}>Reset Zoom</button>

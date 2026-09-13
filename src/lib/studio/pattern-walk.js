@@ -1,10 +1,9 @@
 import { state } from "./state.js";
-import { dom, highlightCtx } from "./dom.js";
+import { dom, highlightCtx, gridCtx, countCtx } from "./dom.js";
 import { getColorLabel } from "./utils.js";
 import { runLengthEncode } from "./count.js";
 import { drawGrid } from "./grid.js";
 import { drawCountOverlay } from "./count.js";
-import { renderWorkingCanvasDisplay } from "./viewport.js";
 
 const DEFAULT_OPTIONS = {
   highlightRow: true,
@@ -18,15 +17,22 @@ export function buildWalkStepsFromCountResults() {
   const steps = [];
   if (!state.countResults.length) return steps;
 
+  const metricsCols = state.countMetrics?.cols;
+
   for (const rowResult of state.countResults) {
-    const { imgRow, dir, segments, logRow, cols } = rowResult;
-    const leftToRight = dir === "→";
+    const { imgRow, dir, segments, logRow } = rowResult;
+    const cols = metricsCols || rowResult.cols;
+    if (!cols || !segments?.length) continue;
+
+    const leftToRight = dir === "→" || dir === "->";
     let colCursor = leftToRight ? 0 : cols - 1;
-    const step = leftToRight ? 1 : -1;
+    const stepDir = leftToRight ? 1 : -1;
 
     segments.forEach((segment, segIndex) => {
-      const startCol = colCursor;
-      const endCol = colCursor + step * (segment.count - 1);
+      const rawStart = colCursor;
+      const rawEnd = colCursor + stepDir * (segment.count - 1);
+      const startCol = Math.min(rawStart, rawEnd);
+      const endCol = Math.max(rawStart, rawEnd);
       steps.push({
         logRow,
         imgRow,
@@ -34,11 +40,11 @@ export function buildWalkStepsFromCountResults() {
         segment,
         dir,
         cols,
-        startCol: Math.min(startCol, endCol),
-        endCol: Math.max(startCol, endCol),
+        startCol,
+        endCol,
         leftToRight,
       });
-      colCursor = endCol + step;
+      colCursor = rawEnd + stepDir;
     });
   }
   return steps;
@@ -161,48 +167,78 @@ export function drawPatternWalkOverlay() {
   if (opts.enlargeSegment) {
     const pad = Math.max(2, Math.min(pw, ph) * scaleX * 0.12);
     const lift = Math.max(1, Math.min(pw, ph) * scaleY * 0.08);
-    for (let col = step.startCol; col <= step.endCol; col++) {
-      const x0 = Math.round(col * pw * scaleX);
+    const col0 = Math.min(step.startCol, step.endCol);
+    const col1 = Math.max(step.startCol, step.endCol);
+    if (Number.isFinite(col0) && Number.isFinite(col1) && col0 >= 0) {
+      const x0 = Math.round(col0 * pw * scaleX);
       const y0 = Math.round(step.imgRow * ph * scaleY);
       const x1 =
-        col === cols - 1 ? dw : Math.round((col + 1) * pw * scaleX);
+        col1 >= cols - 1 ? dw : Math.round((col1 + 1) * pw * scaleX);
       const y1 =
-        step.imgRow === rows - 1 ? dh : Math.round((step.imgRow + 1) * ph * scaleY);
+        step.imgRow === rows - 1
+          ? dh
+          : Math.round((step.imgRow + 1) * ph * scaleY);
       const w = Math.max(1, x1 - x0);
       const h = Math.max(1, y1 - y0);
       const color = step.segment.color;
+      const ex0 = x0 - pad;
+      const ey0 = y0 - pad - lift;
+      const ew = w + pad * 2;
+      const eh = h + pad * 2;
 
       highlightCtx.fillStyle = color.hex || "#fff";
-      highlightCtx.fillRect(
-        x0 - pad,
-        y0 - pad - lift,
-        w + pad * 2,
-        h + pad * 2,
-      );
+      highlightCtx.fillRect(ex0, ey0, ew, eh);
+
+      // Solid fill sits above the grid canvas — redraw cell lines on the enlarge.
+      if (opts.showGrid) {
+        const opEl = document.getElementById("grid-opacity");
+        const op = opEl ? parseInt(opEl.value, 10) / 100 : 0.55;
+        highlightCtx.save();
+        highlightCtx.beginPath();
+        highlightCtx.rect(ex0, ey0, ew, eh);
+        highlightCtx.clip();
+        highlightCtx.strokeStyle = `rgba(232,255,71,${op})`;
+        highlightCtx.lineWidth = 1;
+        highlightCtx.beginPath();
+        for (let col = col0; col <= col1 + 1; col++) {
+          const ox = col >= cols ? x1 : Math.round(col * pw * scaleX);
+          const lx = Math.round(ex0 + ((ox - x0) / w) * ew) + 0.5;
+          highlightCtx.moveTo(lx, ey0);
+          highlightCtx.lineTo(lx, ey0 + eh);
+        }
+        highlightCtx.moveTo(ex0, Math.round(ey0) + 0.5);
+        highlightCtx.lineTo(ex0 + ew, Math.round(ey0) + 0.5);
+        highlightCtx.moveTo(ex0, Math.round(ey0 + eh) + 0.5);
+        highlightCtx.lineTo(ex0 + ew, Math.round(ey0 + eh) + 0.5);
+        highlightCtx.stroke();
+        highlightCtx.restore();
+      }
+
       highlightCtx.strokeStyle = "rgba(255, 255, 255, 0.92)";
       highlightCtx.lineWidth = 2;
-      highlightCtx.strokeRect(
-        x0 - pad + 0.5,
-        y0 - pad - lift + 0.5,
-        w + pad * 2 - 1,
-        h + pad * 2 - 1,
-      );
+      highlightCtx.strokeRect(ex0 + 0.5, ey0 + 0.5, ew - 1, eh - 1);
     }
   } else {
-    highlightCtx.fillStyle = "rgba(232, 255, 71, 0.35)";
-    for (let col = step.startCol; col <= step.endCol; col++) {
-      const x0 = Math.round(col * pw * scaleX);
-      const y0 = Math.round(step.imgRow * ph * scaleY);
-      const x1 =
-        col === cols - 1 ? dw : Math.round((col + 1) * pw * scaleX);
-      const y1 =
-        step.imgRow === rows - 1 ? dh : Math.round((step.imgRow + 1) * ph * scaleY);
-      highlightCtx.fillRect(
-        x0,
-        y0,
-        Math.max(1, x1 - x0),
-        Math.max(1, y1 - y0),
-      );
+    const col0 = Math.min(step.startCol, step.endCol);
+    const col1 = Math.max(step.startCol, step.endCol);
+    if (Number.isFinite(col0) && Number.isFinite(col1) && col0 >= 0) {
+      highlightCtx.fillStyle = "rgba(232, 255, 71, 0.35)";
+      for (let col = col0; col <= col1; col++) {
+        const x0 = Math.round(col * pw * scaleX);
+        const y0 = Math.round(step.imgRow * ph * scaleY);
+        const x1 =
+          col === cols - 1 ? dw : Math.round((col + 1) * pw * scaleX);
+        const y1 =
+          step.imgRow === rows - 1
+            ? dh
+            : Math.round((step.imgRow + 1) * ph * scaleY);
+        highlightCtx.fillRect(
+          x0,
+          y0,
+          Math.max(1, x1 - x0),
+          Math.max(1, y1 - y0),
+        );
+      }
     }
   }
 }
@@ -263,7 +299,8 @@ export function updatePatternWalkUI() {
 
 export function refreshPatternWalkView() {
   updatePatternWalkUI();
-  renderWorkingCanvasDisplay();
+  // Only the highlight layer changes between stitches — avoid full canvas bake (no flash).
+  drawPatternWalkOverlay();
 }
 
 export function patternWalkNext() {
@@ -283,7 +320,8 @@ export function patternWalkPrev() {
 export function setPatternWalkOption(key, value) {
   if (key in state.patternWalk.options) {
     state.patternWalk.options[key] = value;
-    refreshPatternWalkView();
+    updatePatternWalkUI();
+    renderPatternWalkCanvases();
   }
 }
 
@@ -343,7 +381,20 @@ function syncWalkOptionCheckboxes() {
 export function renderPatternWalkCanvases() {
   const opts = state.patternWalk.options;
   const { pw, ph, rows, cols } = state.countMetrics || {};
-  if (opts.showGrid) drawGrid();
-  if (opts.showCountNumbers && pw) drawCountOverlay(pw, ph, rows, cols);
+  const dw = dom.gridCanvas?.width || 0;
+  const dh = dom.gridCanvas?.height || 0;
+
+  if (opts.showGrid) {
+    drawGrid();
+  } else if (gridCtx && dw) {
+    gridCtx.clearRect(0, 0, dw, dh);
+  }
+
+  if (opts.showCountNumbers && pw) {
+    drawCountOverlay(pw, ph, rows, cols);
+  } else if (countCtx && dw) {
+    countCtx.clearRect(0, 0, dw, dh);
+  }
+
   drawPatternWalkOverlay();
 }

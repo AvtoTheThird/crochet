@@ -1,8 +1,13 @@
 <script>
 	import favicon from '$lib/assets/favicon.svg';
-	import '$lib/studio/styles.css';
+	import { onMount } from 'svelte';
+	import { initAuth } from '$lib/supabase/session.svelte.js';
 
 	let { children } = $props();
+
+	onMount(() => {
+		initAuth();
+	});
 </script>
 
 <svelte:head>

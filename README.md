@@ -2,33 +2,31 @@
 
 SvelteKit app for turning uploaded pixel art into tapestry / run-length stitch patterns.
 
-## Develop
+## Setup
+
+1. Copy `.env.example` → `.env`
+2. Fill `PUBLIC_SUPABASE_ANON_KEY` from Supabase → **Project Settings → API**
+3. Enable **Google** under Authentication → Providers
+4. Add redirect URL: `http://localhost:5173/auth/callback`
+5. (Done once) schema migration already applied; re-run with `npm run db:migrate` if needed
 
 ```sh
 npm install
 npm run dev
 ```
 
-## Build
+## Auth & routes
 
-```sh
-npm run build
-npm run preview
-```
+| URL | Who |
+|-----|-----|
+| `/` | Landing — Google login |
+| `/auth/callback` | OAuth return |
+| `/studio/load` … `/studio/walk` | Studio (logged-in only) |
 
-SPA mode (`ssr = false`) with `@sveltejs/adapter-static` — ready for later platform features (auth, paywall).
+## Supabase SQL layout
 
-Studio workflow steps are real routes so the browser back/forward buttons work:
+See `supabase/README.md` — migrations, schemas, RLS, storage bucket `project-images`.
 
-| URL | Step |
-|-----|------|
-| `/studio/load` | Load image |
-| `/studio/crop` | Crop |
-| `/studio/grid` | Grid setup |
-| `/studio/colors` | Color correction |
-| `/studio/count` | Count |
-| `/studio/walk` | Pattern walk |
+## Security
 
-`/` and `/studio` redirect to `/studio/load`. Future pages (`/login`, `/profile`, `/gallery`, …) can sit alongside `/studio` without conflicting.
-
-The previous vanilla HTML/JS sources are archived under `_legacy/`.
+Do not commit `.env`. If a database password was shared in chat, rotate it in the Supabase dashboard.

@@ -40,6 +40,19 @@ header {
 
 header > div { flex: 1; }
 
+header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+header .user-chip {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
 header h1 {
   font-family: 'Syne', sans-serif;
   font-weight: 800;

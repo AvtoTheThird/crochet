@@ -27,6 +27,7 @@ export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.yarnColors.clear();
   state.sourceToYarn.clear();
   state.highlightedSourceHex = null;
+  state.completedRows = [];
   resetZoomBakeCache();
 
   updateBaseDisplayScale();

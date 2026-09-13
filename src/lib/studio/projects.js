@@ -1,136 +1,22 @@
 /**
- * IndexedDB project persistence (ported from the shipping vanilla bundle).
- * Grid is stored as a compact palette + Uint16Array index map; image as a PNG Blob.
+ * Supabase project persistence — DB row + Storage PNG for working canvas.
  */
 import { state } from './state.js';
 import { dom } from './dom.js';
 import { setStartDirection } from './grid.js';
 import { runLengthEncode } from './count.js';
 import { buildWalkStepsFromCountResults } from './pattern-walk.js';
-import { updateBaseDisplayScale } from './viewport.js';
+import { updateBaseDisplayScale, resetZoomBakeCache } from './viewport.js';
+import { getSupabase } from '$lib/supabase/client.js';
+import { auth } from '$lib/supabase/session.svelte.js';
 
-const IDB_NAME = 'PixelCountStudio';
-const IDB_VER = 1;
-const IDB_STORE = 'projects';
-
-/** @type {IDBDatabase | null} */
-let idb = null;
+const BUCKET = 'project-images';
 let saveChain = Promise.resolve();
 
-try {
-	for (const k of Object.keys(localStorage).filter((key) => key.startsWith('pixelcount-v1'))) {
-		localStorage.removeItem(k);
-	}
-} catch {
-	/* ignore */
-}
-
-function openIDB() {
-	if (idb) return Promise.resolve(idb);
-	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(IDB_NAME, IDB_VER);
-		req.onupgradeneeded = (e) => {
-			const db = /** @type {IDBOpenDBRequest} */ (e.target).result;
-			if (!db.objectStoreNames.contains(IDB_STORE)) {
-				db.createObjectStore(IDB_STORE, { keyPath: 'id' });
-			}
-		};
-		req.onsuccess = (e) => {
-			idb = /** @type {IDBOpenDBRequest} */ (e.target).result;
-			resolve(idb);
-		};
-		req.onerror = (e) => reject(/** @type {IDBOpenDBRequest} */ (e.target).error);
-	});
-}
-
-function idbPut(record) {
-	return openIDB().then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const req = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(record);
-				req.onsuccess = () => resolve();
-				req.onerror = (e) => reject(/** @type {IDBRequest} */ (e.target).error);
-			})
-	);
-}
-
-function idbGet(id) {
-	return openIDB().then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(id);
-				req.onsuccess = (e) => resolve(/** @type {IDBRequest} */ (e.target).result);
-				req.onerror = (e) => reject(/** @type {IDBRequest} */ (e.target).error);
-			})
-	);
-}
-
-function idbDelete(id) {
-	return openIDB().then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const req = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).delete(id);
-				req.onsuccess = () => resolve();
-				req.onerror = (e) => reject(/** @type {IDBRequest} */ (e.target).error);
-			})
-	);
-}
-
-function idbGetAll() {
-	return openIDB().then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAll();
-				req.onsuccess = (e) => resolve(/** @type {IDBRequest} */ (e.target).result);
-				req.onerror = (e) => reject(/** @type {IDBRequest} */ (e.target).error);
-			})
-	);
-}
-
-function encodeGrid(countGrid, countMetrics) {
-	if (!countGrid.length || !countMetrics) return null;
-	const { rows, cols } = countMetrics;
-	/** @type {string[]} */
-	const palette = [];
-	/** @type {Record<string, number>} */
-	const palIdx = {};
-	const data = new Uint16Array(rows * cols);
-	for (let r = 0; r < rows; r++) {
-		for (let c = 0; c < cols; c++) {
-			const cell = countGrid[r] && countGrid[r][c];
-			const key = cell ? cell.sourceHex : '#000000';
-			if (palIdx[key] === undefined) {
-				palIdx[key] = palette.length;
-				palette.push(key);
-			}
-			data[r * cols + c] = palIdx[key];
-		}
-	}
-	return { palette, data };
-}
-
-function decodeGrid(encoded, countMetrics, yarnColors, sourceToYarn) {
-	if (!encoded || !countMetrics) return [];
-	const { rows, cols } = countMetrics;
-	const grid = [];
-	for (let r = 0; r < rows; r++) {
-		grid[r] = [];
-		for (let c = 0; c < cols; c++) {
-			const sourceHex = encoded.palette[encoded.data[r * cols + c]] || '#000000';
-			const yarnId = sourceToYarn.get(sourceHex);
-			const yarn = yarnColors.get(yarnId);
-			grid[r][c] = {
-				r: yarn ? yarn.r : 0,
-				g: yarn ? yarn.g : 0,
-				b: yarn ? yarn.b : 0,
-				hex: yarn ? yarn.hex : sourceHex,
-				sourceHex,
-				name: yarn ? yarn.name : sourceHex,
-				yarnId: yarnId || null
-			};
-		}
-	}
-	return grid;
+function requireUserId() {
+	const id = auth.user?.id;
+	if (!id) throw new Error('You must be logged in to save projects.');
+	return id;
 }
 
 function canvasToBlob(canvas) {
@@ -150,32 +36,158 @@ function defaultProjectName() {
 	return 'Untitled Pattern';
 }
 
-function buildProjectRecord(id, name) {
-	const encoded = encodeGrid(state.countGrid, state.countMetrics);
-	return canvasToBlob(state.workingCanvas).then((blob) => ({
-		id,
-		name,
-		savedAt: new Date().toISOString(),
-		step: state.currentStep,
-		imageBlob: blob,
-		grid: {
-			pwInput: document.getElementById('px-w')?.value,
-			phInput: document.getElementById('px-h')?.value,
-			colsInput: document.getElementById('grid-cols-input')?.value,
-			rowsInput: document.getElementById('grid-rows-input')?.value,
-			tolerance: document.getElementById('tolerance')?.value,
-			startDirection: state.startDirection,
-			gridOpacity: document.getElementById('grid-opacity')?.value
-		},
-		countMetrics: state.countMetrics,
-		gridPalette: encoded ? encoded.palette : [],
-		gridData: encoded ? encoded.data : new Uint16Array(0),
-		yarnColors: [...state.yarnColors.entries()],
-		sourceToYarn: [...state.sourceToYarn.entries()],
-		patternWalkIndex: state.patternWalk.currentIndex,
-		patternWalkOptions: { ...state.patternWalk.options },
-		showCountOverlay: state.showCountOverlay
+function readNum(id, fallback) {
+	const n = parseFloat(document.getElementById(id)?.value ?? '');
+	return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function readInt(id, fallback) {
+	const n = parseInt(document.getElementById(id)?.value ?? '', 10);
+	return Number.isFinite(n) ? n : fallback;
+}
+
+function directionToDb(dir) {
+	return dir === 'rtl' ? 'right' : 'left';
+}
+
+function directionFromDb(dir) {
+	return dir === 'right' ? 'rtl' : 'ltr';
+}
+
+function buildPaletteJson() {
+	/** @type {Map<string, {hex:string,r:number,g:number,b:number,count:number,yarn_label:string}>} */
+	const map = new Map();
+	for (const row of state.countGrid) {
+		for (const cell of row) {
+			if (!cell) continue;
+			const key = cell.hex;
+			const existing = map.get(key);
+			if (existing) {
+				existing.count += 1;
+			} else {
+				map.set(key, {
+					hex: cell.hex,
+					r: cell.r,
+					g: cell.g,
+					b: cell.b,
+					count: 1,
+					yarn_label: (cell.name || cell.hex).trim() || cell.hex
+				});
+			}
+		}
+	}
+	return [...map.values()];
+}
+
+function buildCountResultsJson() {
+	const cols = state.countMetrics?.cols;
+	return (state.countResults || []).map((row) => ({
+		logRow: row.logRow,
+		imgRow: row.imgRow,
+		dir: row.dir,
+		cols: row.cols ?? cols,
+		segments: (row.segments || []).map((seg) => ({
+			color: {
+				hex: seg.color?.hex || '#000000',
+				name: seg.color?.name || seg.color?.hex || ''
+			},
+			count: seg.count
+		}))
 	}));
+}
+
+function applyPaletteToMaps(palette) {
+	state.yarnColors.clear();
+	state.sourceToYarn.clear();
+	for (const entry of palette || []) {
+		const hex = entry.hex || '#000000';
+		const id = `yarn-${hex.replace('#', '')}`;
+		const yarn = {
+			id,
+			r: entry.r ?? 0,
+			g: entry.g ?? 0,
+			b: entry.b ?? 0,
+			hex,
+			name: entry.yarn_label || hex
+		};
+		state.yarnColors.set(id, yarn);
+		state.sourceToYarn.set(hex, id);
+	}
+}
+
+/**
+ * Rebuild per-cell grid from boustrophedon count_results.
+ * @param {any[]} countResults
+ * @param {{ cols: number, rows: number, pw: number, ph: number }} metrics
+ */
+function rebuildCountGridFromResults(countResults, metrics) {
+	const { cols, rows } = metrics;
+	/** @type {any[][]} */
+	const grid = Array.from({ length: rows }, () => Array(cols).fill(null));
+
+	for (const rowResult of countResults || []) {
+		const imgRow = rowResult.imgRow;
+		if (imgRow < 0 || imgRow >= rows) continue;
+		const leftToRight = rowResult.dir === '→';
+		let col = leftToRight ? 0 : cols - 1;
+		const step = leftToRight ? 1 : -1;
+
+		for (const seg of rowResult.segments || []) {
+			const hex = seg.color?.hex || '#000000';
+			const yarnId = state.sourceToYarn.get(hex);
+			const yarn = yarnId ? state.yarnColors.get(yarnId) : null;
+			const cell = {
+				r: yarn?.r ?? 0,
+				g: yarn?.g ?? 0,
+				b: yarn?.b ?? 0,
+				hex: yarn?.hex ?? hex,
+				sourceHex: hex,
+				name: yarn?.name ?? seg.color?.name ?? hex,
+				yarnId: yarnId || null
+			};
+			for (let i = 0; i < (seg.count || 0); i++) {
+				if (col >= 0 && col < cols) grid[imgRow][col] = { ...cell };
+				col += step;
+			}
+		}
+	}
+	return grid;
+}
+
+function imagePath(userId, projectId) {
+	return `${userId}/${projectId}.png`;
+}
+
+function currentWalkRow() {
+	const step = state.patternWalk.steps[state.patternWalk.currentIndex];
+	return step?.logRow ?? 0;
+}
+
+async function buildDbRow(userId, projectId, name, imagePathValue) {
+	const pw = readNum('px-w', state.countMetrics?.pw || 8);
+	const ph = readNum('px-h', state.countMetrics?.ph || 8);
+	const tolerance = readInt('tolerance', 20);
+	const gridOpacity = readInt('grid-opacity', 35);
+
+	return {
+		id: projectId,
+		user_id: userId,
+		name,
+		image_url: imagePathValue,
+		image_width: state.workingCanvas.width,
+		image_height: state.workingCanvas.height,
+		pixel_width: Number(pw),
+		pixel_height: Number(ph),
+		color_tolerance: tolerance,
+		start_direction: directionToDb(state.startDirection),
+		palette: buildPaletteJson(),
+		count_results: buildCountResultsJson(),
+		grid_opacity: gridOpacity,
+		current_row: currentWalkRow(),
+		completed_rows: state.completedRows || [],
+		studio_step: state.currentStep,
+		walk_index: state.patternWalk.currentIndex || 0
+	};
 }
 
 /**
@@ -184,25 +196,37 @@ function buildProjectRecord(id, name) {
 export function persistProject(options = {}) {
 	if (!state.workingCanvas) return Promise.resolve(null);
 
-	const run = () => {
+	const run = async () => {
+		const userId = requireUserId();
 		let name = state.projectName || defaultProjectName();
 		let id = state.projectId;
 
 		if (options.promptName) {
 			const prompted = prompt('Project name:', name);
-			if (prompted === null) return Promise.resolve(null);
+			if (prompted === null) return null;
 			name = prompted.trim() || name;
 		}
 
-		if (!id) id = 'p' + Date.now();
+		if (!id) id = crypto.randomUUID();
 
-		return buildProjectRecord(id, name).then((record) =>
-			idbPut(record).then(() => {
-				state.projectId = id;
-				state.projectName = name;
-				return record;
-			})
-		);
+		const blob = await canvasToBlob(state.workingCanvas);
+		const path = imagePath(userId, id);
+		const supabase = getSupabase();
+
+		const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, blob, {
+			upsert: true,
+			contentType: 'image/png',
+			cacheControl: '3600'
+		});
+		if (uploadError) throw uploadError;
+
+		const row = await buildDbRow(userId, id, name, path);
+		const { data, error } = await supabase.from('projects').upsert(row).select().single();
+		if (error) throw error;
+
+		state.projectId = id;
+		state.projectName = name;
+		return data;
 	};
 
 	saveChain = saveChain.then(run, run);
@@ -210,6 +234,7 @@ export function persistProject(options = {}) {
 }
 
 export function autoSaveProject() {
+	if (!auth.user) return Promise.resolve(null);
 	return persistProject({ silent: true })
 		.then((record) => {
 			if (record) renderProjectList();
@@ -225,6 +250,10 @@ export function saveProject() {
 		alert('No image loaded.');
 		return;
 	}
+	if (!auth.user) {
+		alert('You must be logged in to save.');
+		return;
+	}
 	persistProject({ promptName: !state.projectId })
 		.then((record) => {
 			if (!record) return;
@@ -238,163 +267,207 @@ export function saveProject() {
 			}
 			renderProjectList();
 		})
-		.catch((e) => alert('Save failed: ' + e.message));
+		.catch((e) => alert('Save failed: ' + (e.message || e)));
 }
 
-export function deleteProject(id) {
+export async function deleteProject(id) {
 	if (!confirm('Delete this project?')) return;
-	idbDelete(id)
-		.then(() => {
-			if (state.projectId === id) {
-				state.projectId = null;
-				state.projectName = null;
-			}
-			renderProjectList();
-		})
-		.catch((e) => alert('Delete failed: ' + e.message));
+	try {
+		const userId = requireUserId();
+		const supabase = getSupabase();
+		await supabase.storage.from(BUCKET).remove([imagePath(userId, id)]);
+		const { error } = await supabase.from('projects').delete().eq('id', id);
+		if (error) throw error;
+		if (state.projectId === id) {
+			state.projectId = null;
+			state.projectName = null;
+		}
+		renderProjectList();
+	} catch (e) {
+		alert('Delete failed: ' + (e.message || e));
+	}
 }
 
-export function loadProjectById(id) {
-	idbGet(id)
-		.then((record) => {
-			if (!record) {
-				alert('Project not found.');
-				return;
-			}
-			restoreSnapshot(record);
-		})
-		.catch((e) => alert('Load failed: ' + e.message));
+export async function loadProjectById(id) {
+	try {
+		const supabase = getSupabase();
+		const { data: row, error } = await supabase.from('projects').select('*').eq('id', id).single();
+		if (error) throw error;
+		if (!row) {
+			alert('Project not found.');
+			return;
+		}
+
+		const { data: file, error: dlError } = await supabase.storage.from(BUCKET).download(row.image_url);
+		if (dlError) throw dlError;
+
+		await restoreFromSupabase(row, file);
+	} catch (e) {
+		alert('Load failed: ' + (e.message || e));
+	}
 }
 
-function restoreSnapshot(snap) {
-	if (!snap || !snap.imageBlob) {
-		alert('Invalid project data.');
+/**
+ * @param {Record<string, any>} row
+ * @param {Blob} imageBlob
+ */
+function restoreFromSupabase(row, imageBlob) {
+	return new Promise((resolve, reject) => {
+		state.projectId = row.id;
+		state.projectName = row.name;
+		const url = URL.createObjectURL(imageBlob);
+		const img = new Image();
+		img.onload = async () => {
+			URL.revokeObjectURL(url);
+			resetZoomBakeCache();
+			state.workingCanvas = document.createElement('canvas');
+			state.workingCanvas.width = img.width;
+			state.workingCanvas.height = img.height;
+			state.workingCtx = state.workingCanvas.getContext('2d', { willReadFrequently: true });
+			state.workingCtx.drawImage(img, 0, 0);
+			state.zoomLevel = 1;
+			if (dom.canvasArea) {
+				dom.canvasArea.scrollLeft = 0;
+				dom.canvasArea.scrollTop = 0;
+			}
+			state.pixelData = null;
+			state.highlightedSourceHex = null;
+			state.viewPanning = null;
+			state.cropDragging = null;
+			state.cropRect = { x: 0, y: 0, w: img.width, h: img.height };
+			state.completedRows = Array.isArray(row.completed_rows) ? [...row.completed_rows] : [];
+
+			const setVal = (elId, v) => {
+				const el = document.getElementById(elId);
+				if (el && v !== undefined && v !== null) el.value = String(v);
+			};
+
+			setVal('px-w', row.pixel_width);
+			setVal('px-h', row.pixel_height);
+			const cols = Math.max(1, Math.floor(img.width / row.pixel_width));
+			const rows = Math.max(1, Math.floor(img.height / row.pixel_height));
+			setVal('grid-cols-input', cols);
+			setVal('grid-rows-input', rows);
+			setVal('tolerance', row.color_tolerance);
+			const tolVal = document.getElementById('tol-val');
+			if (tolVal) tolVal.textContent = String(row.color_tolerance ?? 20);
+			setVal('grid-opacity', row.grid_opacity);
+			const opVal = document.getElementById('grid-opacity-val');
+			if (opVal) opVal.textContent = String(row.grid_opacity ?? 35);
+
+			setStartDirection(directionFromDb(row.start_direction));
+
+			state.countMetrics = {
+				pw: Number(row.pixel_width),
+				ph: Number(row.pixel_height),
+				cols,
+				rows
+			};
+
+			applyPaletteToMaps(row.palette);
+			state.countResults = Array.isArray(row.count_results) ? row.count_results : [];
+
+			if (state.countResults.length) {
+				state.countGrid = rebuildCountGridFromResults(state.countResults, state.countMetrics);
+			} else {
+				state.countGrid = [];
+			}
+
+			const { invalidateColorPreviewCache } = await import('./color-correction.js');
+			invalidateColorPreviewCache();
+
+			if (state.countGrid.length && state.countMetrics) {
+				if (!state.countResults.length) runLengthEncode();
+				const step = row.studio_step || 2;
+				if (step >= 6 || (row.walk_index > 0 && state.countResults.length)) {
+					state.patternWalk.steps = buildWalkStepsFromCountResults();
+					state.patternWalk.currentIndex = Math.min(
+						row.walk_index || 0,
+						Math.max(0, state.patternWalk.steps.length - 1)
+					);
+				}
+			}
+
+			if (dom.dropZone) dom.dropZone.style.display = 'none';
+			if (dom.wrapper) dom.wrapper.style.display = 'block';
+			if (dom.canvasArea) dom.canvasArea.classList.add('has-image');
+			updateBaseDisplayScale();
+
+			const targetStep = row.studio_step || (state.countResults.length ? 5 : 3);
+			const { goStep } = await import('./steps.js');
+			goStep(targetStep, { replaceState: true });
+			resolve();
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error('Could not restore image.'));
+		};
+		img.src = url;
+	});
+}
+
+export async function renderProjectList() {
+	const container = document.getElementById('project-list');
+	if (!container) return;
+
+	if (!auth.user) {
+		container.innerHTML =
+			'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">Log in to see saved projects.</p>';
 		return;
 	}
-	state.projectId = snap.id || null;
-	state.projectName = snap.name || null;
-	const url = URL.createObjectURL(snap.imageBlob);
-	const img = new Image();
-	img.onload = () => {
-		URL.revokeObjectURL(url);
-		state.workingCanvas = document.createElement('canvas');
-		state.workingCanvas.width = img.width;
-		state.workingCanvas.height = img.height;
-		state.workingCtx = state.workingCanvas.getContext('2d', { willReadFrequently: true });
-		state.workingCtx.drawImage(img, 0, 0);
-		state.zoomLevel = 1;
-		if (dom.canvasArea) {
-			dom.canvasArea.scrollLeft = 0;
-			dom.canvasArea.scrollTop = 0;
-		}
-		state.pixelData = null;
-		state.highlightedSourceHex = null;
-		state.viewPanning = null;
-		state.cropDragging = null;
-		state.cropRect = { x: 0, y: 0, w: img.width, h: img.height };
 
-		const g = snap.grid || {};
-		const setVal = (id, v) => {
-			const el = document.getElementById(id);
-			if (el && v !== undefined) el.value = v;
-		};
-		setVal('px-w', g.pwInput);
-		setVal('px-h', g.phInput);
-		setVal('grid-cols-input', g.colsInput);
-		setVal('grid-rows-input', g.rowsInput);
-		if (g.tolerance !== undefined) {
-			setVal('tolerance', g.tolerance);
-			const tolVal = document.getElementById('tol-val');
-			if (tolVal) tolVal.textContent = g.tolerance;
-		}
-		if (g.gridOpacity !== undefined) {
-			setVal('grid-opacity', g.gridOpacity);
-			const opVal = document.getElementById('grid-opacity-val');
-			if (opVal) opVal.textContent = g.gridOpacity;
-		}
-		if (g.startDirection) setStartDirection(g.startDirection);
+	try {
+		const supabase = getSupabase();
+		const { data: records, error } = await supabase
+			.from('projects')
+			.select('id, name, updated_at, studio_step')
+			.order('updated_at', { ascending: false });
+		if (error) throw error;
 
-		state.countMetrics = snap.countMetrics || null;
-		state.showCountOverlay = snap.showCountOverlay !== false;
-		if (dom.countCanvas) {
-			dom.countCanvas.style.opacity = state.showCountOverlay ? '1' : '0';
+		if (!records?.length) {
+			container.innerHTML =
+				'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">No saved projects yet.</p>';
+			return;
 		}
 
-		state.yarnColors.clear();
-		state.sourceToYarn.clear();
-		if (snap.yarnColors) snap.yarnColors.forEach((e) => state.yarnColors.set(e[0], e[1]));
-		if (snap.sourceToYarn) snap.sourceToYarn.forEach((e) => state.sourceToYarn.set(e[0], e[1]));
-
-		state.countGrid = decodeGrid(
-			{ palette: snap.gridPalette, data: snap.gridData },
-			snap.countMetrics,
-			state.yarnColors,
-			state.sourceToYarn
-		);
-		state.countResults = [];
-		import('./color-correction.js').then((m) => m.invalidateColorPreviewCache());
-
-		if (state.countGrid.length && state.countMetrics) {
-			runLengthEncode();
-			if (snap.step >= 6) {
-				state.patternWalk.steps = buildWalkStepsFromCountResults();
-				state.patternWalk.currentIndex = snap.patternWalkIndex || 0;
+		container.innerHTML = '';
+		const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Count', 'Walk'];
+		for (const proj of records) {
+			let date = '';
+			try {
+				date = new Date(proj.updated_at).toLocaleDateString();
+			} catch {
+				/* ignore */
 			}
+			const item = document.createElement('div');
+			item.className =
+				'project-list-item' + (proj.id === state.projectId ? ' is-current' : '');
+			item.innerHTML =
+				`<div class="project-list-name">${escapeHtml(proj.name)}</div>` +
+				`<div class="project-list-meta">${date} · ${stepLabels[proj.studio_step] || 'Saved'}</div>` +
+				'<div class="project-list-actions">' +
+				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
+				`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +
+				'</div>';
+			container.appendChild(item);
 		}
-		if (snap.patternWalkOptions) Object.assign(state.patternWalk.options, snap.patternWalkOptions);
-
-		if (dom.dropZone) dom.dropZone.style.display = 'none';
-		if (dom.wrapper) dom.wrapper.style.display = 'block';
-		if (dom.canvasArea) dom.canvasArea.classList.add('has-image');
-		updateBaseDisplayScale();
-
-		import('./steps.js').then((m) => m.goStep(snap.step || 2, { replaceState: true }));
-	};
-	img.onerror = () => {
-		URL.revokeObjectURL(url);
-		alert('Could not restore image.');
-	};
-	img.src = url;
+		container.querySelectorAll('.project-load-btn').forEach((btn) => {
+			btn.addEventListener('click', () => loadProjectById(btn.getAttribute('data-id')));
+		});
+		container.querySelectorAll('.project-delete-btn').forEach((btn) => {
+			btn.addEventListener('click', () => deleteProject(btn.getAttribute('data-id')));
+		});
+	} catch (e) {
+		console.warn('renderProjectList:', e);
+		container.innerHTML =
+			'<p style="font-size:0.65rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
+	}
 }
 
-export function renderProjectList() {
-	return idbGetAll()
-		.then((records) => {
-			const container = document.getElementById('project-list');
-			if (!container) return;
-			if (!records || !records.length) {
-				container.innerHTML =
-					'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">No saved projects yet.</p>';
-				return;
-			}
-			records.sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
-			container.innerHTML = '';
-			const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Count', 'Walk'];
-			records.forEach((proj) => {
-				let date = '';
-				try {
-					date = new Date(proj.savedAt).toLocaleDateString();
-				} catch {
-					/* ignore */
-				}
-				const item = document.createElement('div');
-				item.className =
-					'project-list-item' + (proj.id === state.projectId ? ' is-current' : '');
-				item.innerHTML =
-					`<div class="project-list-name">${proj.name}</div>` +
-					`<div class="project-list-meta">${date} · ${stepLabels[proj.step] || 'Step ' + proj.step}</div>` +
-					'<div class="project-list-actions">' +
-					`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
-					`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +
-					'</div>';
-				container.appendChild(item);
-			});
-			container.querySelectorAll('.project-load-btn').forEach((btn) => {
-				btn.addEventListener('click', () => loadProjectById(btn.getAttribute('data-id')));
-			});
-			container.querySelectorAll('.project-delete-btn').forEach((btn) => {
-				btn.addEventListener('click', () => deleteProject(btn.getAttribute('data-id')));
-			});
-		})
-		.catch((e) => console.warn('renderProjectList:', e));
+function escapeHtml(s) {
+	return String(s)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
 }
