@@ -5,22 +5,26 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "wrangler types && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
+		"deploy": "npm run build && wrangler deploy",
+		"cf-typegen": "wrangler types",
 		"db:migrate": "node --env-file=.env scripts/apply-migration.mjs"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/adapter-cloudflare": "^7.2.9",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/node": "^26.5.1",
 		"pg": "^8.23.0",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
-		"vite": "^8.0.16"
+		"vite": "^8.0.16",
+		"wrangler": "^4.131.1"
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.116.0"
