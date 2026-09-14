@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { afterNavigate, goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { initStudio, studioActions } from "$lib/studio/index.js";
   import { syncStepFromUrl } from "$lib/studio/steps.js";
@@ -151,7 +152,7 @@
 
 <header>
   <div>
-    <h1>PixelCount Studio</h1>
+    <h1><a href={resolve("/")}>PixelCount Studio</a></h1>
     <div class="sub">Pixel Art Run-Length Encoder</div>
   </div>
   <div class="header-actions">

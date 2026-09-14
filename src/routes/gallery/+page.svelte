@@ -44,18 +44,17 @@
 					<li>
 						<a class="gallery-item" href={resolve('/gallery/[id]', { id: item.id })}>
 							{#if item.imageSrc}
-								<img
-									src={item.imageSrc}
-									alt=""
-									width={item.image_width || 200}
-									height={item.image_height || 200}
-								/>
+								<img src={item.imageSrc} alt="" width="200" height="200" />
 							{:else}
 								<div class="gallery-ph" aria-hidden="true"></div>
 							{/if}
 							<div class="gallery-meta">
 								<strong>{item.name}</strong>
 								<span>by {item.author_username}</span>
+								<span class="gallery-likes"
+									>{item.likes_count ?? 0}
+									{(item.likes_count ?? 0) === 1 ? 'like' : 'likes'}</span
+								>
 							</div>
 						</a>
 					</li>
@@ -116,6 +115,7 @@
 	.gallery-ph {
 		display: block;
 		width: 100%;
+		height: auto;
 		aspect-ratio: 1;
 		object-fit: contain;
 		background: #101012;

@@ -25,7 +25,8 @@ create policy "project_images_select_published"
 	);
 
 -- Gallery list (preview fields only)
-create or replace function public.list_gallery(limit_count integer default 48, offset_count integer default 0)
+drop function if exists public.list_gallery(integer, integer);
+create function public.list_gallery(limit_count integer default 48, offset_count integer default 0)
 returns table (
 	id uuid,
 	name text,

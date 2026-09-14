@@ -4,7 +4,11 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/supabase/session.svelte.js';
 	import { isPaid } from '$lib/supabase/entitlements.js';
-	import { getGalleryItem, addGalleryProjectToMine } from '$lib/supabase/gallery.js';
+	import {
+		getGalleryItem,
+		addGalleryProjectToMine,
+		toggleGalleryLike
+	} from '$lib/supabase/gallery.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -14,10 +18,16 @@
 	let loading = $state(true);
 	let errorMsg = $state('');
 	let busy = $state(false);
+	let likeBusy = $state(false);
 	let okMsg = $state('');
 
 	const paid = $derived(isPaid());
 	const hasFull = $derived(!!item && (item.access === 'full' || paid));
+	const likesLabel = $derived(
+		item
+			? `${item.likes_count ?? 0} ${(item.likes_count ?? 0) === 1 ? 'like' : 'likes'}`
+			: ''
+	);
 
 	async function loadItem() {
 		const id = page.params.id;
@@ -67,6 +77,22 @@
 			busy = false;
 		}
 	}
+
+	async function toggleLike() {
+		if (!item?.id || likeBusy) return;
+		errorMsg = '';
+		likeBusy = true;
+		try {
+			const result = await toggleGalleryLike(item.id);
+			item.likes_count = result.likes_count;
+			item.liked_by_me = result.liked;
+		} catch (e) {
+			if (e?.code === 'NOT_LOGGED_IN') return;
+			errorMsg = e?.message || 'Could not update like';
+		} finally {
+			likeBusy = false;
+		}
+	}
 </script>
 
 <div class="site-page">
@@ -96,6 +122,19 @@
 				<div class="detail-copy">
 					<h1>{item.name}</h1>
 					<p class="byline">by {item.author_username}</p>
+					<div class="like-row">
+						<button
+							type="button"
+							class="site-btn like-btn"
+							class:liked={!!item.liked_by_me}
+							disabled={likeBusy}
+							aria-pressed={!!item.liked_by_me}
+							onclick={toggleLike}
+						>
+							{likeBusy ? '…' : item.liked_by_me ? 'Liked' : 'Like'}
+						</button>
+						<span class="like-count">{likesLabel}</span>
+					</div>
 					<p class="desc">
 						{item.gallery_description?.trim()
 							? item.gallery_description
@@ -181,8 +220,29 @@
 	}
 
 	.byline {
-		margin: 0 0 20px;
+		margin: 0 0 12px;
 		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--site-muted);
+	}
+
+	.like-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px;
+		margin: 0 0 20px;
+	}
+
+	.like-btn.liked {
+		background: var(--site-accent);
+		border-color: var(--site-accent);
+		color: #0c0c0e;
+	}
+
+	.like-count {
+		font-size: 0.7rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--site-muted);

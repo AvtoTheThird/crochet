@@ -395,23 +395,33 @@ export function clearHighlight() {
 }
 
 export function drawColorPreview() {
-  if (!state.countGrid.length || !state.countMetrics) return;
+  if (!state.countGrid.length || !state.countMetrics || !state.workingCanvas) return;
 
-  const { cols, rows } = state.countMetrics;
+  const { pw, ph, cols, rows } = state.countMetrics;
+  const iw = state.workingCanvas.width;
+  const ih = state.workingCanvas.height;
   const dw = dom.mainCanvas.width;
   const dh = dom.mainCanvas.height;
+  const scaleX = dw / iw;
+  const scaleY = dh / ih;
+  // Match grid overlay geometry: cells cover cols*pw × rows*ph in image space,
+  // not a uniform stretch across the full display (leftover pixels caused drift).
+  const destW = Math.max(1, Math.round(cols * pw * scaleX));
+  const destH = Math.max(1, Math.round(rows * ph * scaleY));
   const cache = ensureColorPreviewCache();
 
   mainCtx.imageSmoothingEnabled = false;
   mainCtx.clearRect(0, 0, dw, dh);
-  mainCtx.drawImage(cache, 0, 0, cols, rows, 0, 0, dw, dh);
+  mainCtx.drawImage(cache, 0, 0, cols, rows, 0, 0, destW, destH);
 }
 
 function getCellDisplayRect(col, row, pw, ph, cols, rows, dw, dh, scaleX, scaleY) {
+  const contentW = Math.round(cols * pw * scaleX);
+  const contentH = Math.round(rows * ph * scaleY);
   const x0 = Math.round(col * pw * scaleX);
   const y0 = Math.round(row * ph * scaleY);
-  const x1 = col === cols - 1 ? dw : Math.round((col + 1) * pw * scaleX);
-  const y1 = row === rows - 1 ? dh : Math.round((row + 1) * ph * scaleY);
+  const x1 = col === cols - 1 ? contentW : Math.round((col + 1) * pw * scaleX);
+  const y1 = row === rows - 1 ? contentH : Math.round((row + 1) * ph * scaleY);
   return { x0, y0, x1, y1 };
 }
 

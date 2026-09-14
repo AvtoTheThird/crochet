@@ -17,12 +17,26 @@ let pendingAnchor = null;
 export function updateBaseDisplayScale() {
   if (!state.workingCanvas) return;
   const area = dom.canvasArea;
-  const maxW = area.clientWidth - 40;
-  const maxH = area.clientHeight - 40;
+  // Fit to the visible viewport (not scrollable padding margins).
+  const maxW = Math.max(80, area.clientWidth * 0.92);
+  const maxH = Math.max(80, area.clientHeight * 0.92);
   const sw = state.workingCanvas.width;
   const sh = state.workingCanvas.height;
   state.baseDisplayScale = Math.min(1, maxW / sw, maxH / sh);
   if (state.baseDisplayScale < 0.125) state.baseDisplayScale = 0.125;
+}
+
+/** Scroll so the artwork sits near the center of the pan margins. */
+export function centerCanvasInView() {
+  const area = dom.canvasArea;
+  if (!area) return;
+  // Wait two frames so has-image padding + wrapper size are laid out.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      area.scrollLeft = Math.max(0, (area.scrollWidth - area.clientWidth) / 2);
+      area.scrollTop = Math.max(0, (area.scrollHeight - area.clientHeight) / 2);
+    });
+  });
 }
 
 export function updateZoomUI() {

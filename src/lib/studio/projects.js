@@ -6,7 +6,7 @@ import { dom } from './dom.js';
 import { setStartDirection } from './grid.js';
 import { runLengthEncode } from './count.js';
 import { buildWalkStepsFromCountResults } from './pattern-walk.js';
-import { updateBaseDisplayScale, resetZoomBakeCache } from './viewport.js';
+import { updateBaseDisplayScale, resetZoomBakeCache, centerCanvasInView } from './viewport.js';
 import { getSupabase } from '$lib/supabase/client.js';
 import { auth } from '$lib/supabase/session.svelte.js';
 
@@ -342,10 +342,6 @@ function restoreFromSupabase(row, imageBlob) {
 			state.workingCtx = state.workingCanvas.getContext('2d', { willReadFrequently: true });
 			state.workingCtx.drawImage(img, 0, 0);
 			state.zoomLevel = 1;
-			if (dom.canvasArea) {
-				dom.canvasArea.scrollLeft = 0;
-				dom.canvasArea.scrollTop = 0;
-			}
 			state.pixelData = null;
 			state.highlightedSourceHex = null;
 			state.viewPanning = null;
@@ -414,6 +410,7 @@ function restoreFromSupabase(row, imageBlob) {
 			if (targetStep > 5) targetStep = 5; // legacy Walk was step 6
 			const { goStep } = await import('./steps.js');
 			goStep(targetStep, { replaceState: true });
+			centerCanvasInView();
 			resolve();
 		};
 		img.onerror = () => {

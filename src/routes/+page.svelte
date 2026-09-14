@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/supabase/session.svelte.js';
 	import { resolve } from '$app/paths';
-	import { listGallery } from '$lib/supabase/gallery.js';
+	import { listGalleryMostLiked } from '$lib/supabase/gallery.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -48,7 +48,7 @@
 
 	onMount(async () => {
 		try {
-			galleryItems = await listGallery(24, 0);
+			galleryItems = await listGalleryMostLiked(24);
 		} catch (e) {
 			console.warn('landing gallery:', e);
 		}
@@ -181,6 +181,12 @@
 							{/if}
 							<span class="carousel-name">{item.name}</span>
 							<span class="carousel-author">by {item.author_username}</span>
+							{#if item.likes_count != null}
+								<span class="carousel-likes"
+									>{item.likes_count}
+									{item.likes_count === 1 ? 'like' : 'likes'}</span
+								>
+							{/if}
 						</a>
 					{/each}
 				</div>
@@ -456,7 +462,7 @@
 	.carousel-card {
 		flex: 0 0 180px;
 		width: 180px;
-		max-height: 240px;
+		max-height: 260px;
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
@@ -502,6 +508,14 @@
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--site-muted);
+	}
+
+	.carousel-likes {
+		font-size: 0.6rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--site-muted);
+		opacity: 0.85;
 	}
 
 	.gallery-promo-cta {

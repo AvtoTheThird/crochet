@@ -38,7 +38,17 @@ export function syncCellSizeFromPixelCount() {
 
 export function drawGrid() {
   if (!state.workingCanvas) return;
-  const { pw, ph, iw, ih } = getGridMetrics();
+  // After color correction, lock to the baked countMetrics so overlay matches the preview cells.
+  const metrics =
+    state.currentStep >= 4 && state.countMetrics
+      ? {
+          pw: state.countMetrics.pw,
+          ph: state.countMetrics.ph,
+          iw: state.workingCanvas.width,
+          ih: state.workingCanvas.height
+        }
+      : getGridMetrics();
+  const { pw, ph, iw, ih } = metrics;
   const dw = dom.mainCanvas.width;
   const dh = dom.mainCanvas.height;
   const op = parseInt(document.getElementById('grid-opacity').value, 10) / 100;

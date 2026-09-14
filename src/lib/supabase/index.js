@@ -30,7 +30,9 @@ export {
 } from './entitlements.js';
 export {
 	listGallery,
+	listGalleryMostLiked,
 	getGalleryItem,
+	toggleGalleryLike,
 	publishProjectToGallery,
 	unpublishProjectFromGallery,
 	addGalleryProjectToMine,

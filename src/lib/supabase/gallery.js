@@ -30,6 +30,19 @@ export async function signedProjectImageUrl(path, expiresIn = 3600) {
 }
 
 /**
+ * @param {any[]} rows
+ */
+async function withSignedImages(rows) {
+	return Promise.all(
+		rows.map(async (row) => ({
+			...row,
+			likes_count: Number(row.likes_count) || 0,
+			imageSrc: await signedProjectImageUrl(row.image_url)
+		}))
+	);
+}
+
+/**
  * @param {number} [limit]
  * @param {number} [offset]
  */
@@ -40,13 +53,20 @@ export async function listGallery(limit = 48, offset = 0) {
 		offset_count: offset
 	});
 	if (error) throw error;
-	const rows = data || [];
-	return Promise.all(
-		rows.map(async (row) => ({
-			...row,
-			imageSrc: await signedProjectImageUrl(row.image_url)
-		}))
-	);
+	return withSignedImages(data || []);
+}
+
+/**
+ * Published projects ordered by like count (landing carousel).
+ * @param {number} [limit]
+ */
+export async function listGalleryMostLiked(limit = 24) {
+	const supabase = getSupabase();
+	const { data, error } = await supabase.rpc('list_gallery_most_liked', {
+		limit_count: limit
+	});
+	if (error) throw error;
+	return withSignedImages(data || []);
 }
 
 /**
@@ -58,7 +78,40 @@ export async function getGalleryItem(projectId) {
 	if (error) throw error;
 	if (!data) return null;
 	const imageSrc = await signedProjectImageUrl(data.image_url);
-	return { ...data, imageSrc };
+	return {
+		...data,
+		likes_count: Number(data.likes_count) || 0,
+		liked_by_me: !!data.liked_by_me,
+		imageSrc
+	};
+}
+
+/**
+ * Like / unlike a published gallery project. Logged-in users only.
+ * @param {string} projectId
+ * @returns {Promise<{ likes_count: number, liked: boolean }>}
+ */
+export async function toggleGalleryLike(projectId) {
+	if (!auth.user?.id) {
+		if (browser) await goto(resolve('/login'));
+		throw Object.assign(new Error('Log in to like gallery projects.'), { code: 'NOT_LOGGED_IN' });
+	}
+
+	const supabase = getSupabase();
+	const { data, error } = await supabase.rpc('toggle_gallery_like', {
+		p_project_id: projectId
+	});
+	if (error) {
+		if (error.message?.includes('NOT_LOGGED_IN')) {
+			if (browser) await goto(resolve('/login'));
+			throw Object.assign(new Error('Log in to like gallery projects.'), { code: 'NOT_LOGGED_IN' });
+		}
+		throw error;
+	}
+	return {
+		likes_count: Number(data?.likes_count) || 0,
+		liked: !!data?.liked
+	};
 }
 
 /**

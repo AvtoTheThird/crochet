@@ -24,6 +24,7 @@ create table public.projects (
 	gallery_description text not null default '',
 	published_at timestamptz,
 	cloned_from_id uuid references public.projects (id) on delete set null,
+	likes_count integer not null default 0,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );

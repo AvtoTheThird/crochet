@@ -4,6 +4,7 @@ import {
   updateBaseDisplayScale,
   renderWorkingCanvasDisplay,
   resetZoomBakeCache,
+  centerCanvasInView,
 } from "./viewport.js";
 import { updateCropUI } from "./crop.js";
 import { goStep } from "./steps.js";
@@ -18,8 +19,6 @@ export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.workingCtx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
 
   state.zoomLevel = 1;
-  dom.canvasArea.scrollLeft = 0;
-  dom.canvasArea.scrollTop = 0;
   state.pixelData = null;
   state.countGrid = [];
   state.countResults = [];
@@ -31,7 +30,7 @@ export function initWorkingCanvas(src, sx, sy, sw, sh) {
   resetZoomBakeCache();
 
   updateBaseDisplayScale();
-  renderWorkingCanvasDisplay();
+  renderWorkingCanvasDisplay().then(() => centerCanvasInView());
 
   state.cropRect = { x: 0, y: 0, w: sw, h: sh };
   updateCropUI();
@@ -50,10 +49,10 @@ export function loadFile(file) {
     state.projectId = null;
     state.projectName = null;
     state.loadedFileName = file.name || null;
-    initWorkingCanvas(img, 0, 0, img.width, img.height);
     dom.dropZone.style.display = "none";
     dom.wrapper.style.display = "block";
     dom.canvasArea.classList.add("has-image");
+    initWorkingCanvas(img, 0, 0, img.width, img.height);
     goStep(2);
   };
   img.onerror = () => {
