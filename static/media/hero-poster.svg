@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Pixel art pattern walk demo placeholder">
+  <rect width="1600" height="900" fill="#141416"/>
+  <g fill="none" stroke="#2a2a2e" stroke-width="1">
+    <path d="M0 100H1600M0 200H1600M0 300H1600M0 400H1600M0 500H1600M0 600H1600M0 700H1600M0 800H1600"/>
+    <path d="M100 0V900M200 0V900M300 0V900M400 0V900M500 0V900M600 0V900M700 0V900M800 0V900M900 0V900M1000 0V900M1100 0V900M1200 0V900M1300 0V900M1400 0V900M1500 0V900"/>
+  </g>
+  <rect x="480" y="340" width="640" height="80" fill="#1c1c20" stroke="#e8ff47" stroke-width="2"/>
+  <text x="800" y="390" text-anchor="middle" fill="#e8ff47" font-family="monospace" font-size="28">Demo video placeholder</text>
+</svg>

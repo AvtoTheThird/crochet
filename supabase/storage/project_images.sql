@@ -38,3 +38,16 @@ create policy "project_images_delete_own"
 		bucket_id = 'project-images'
 		and auth.uid()::text = (storage.foldername(name))[1]
 	);
+
+-- Published gallery previews (and maker clone downloads)
+create policy "project_images_select_published"
+	on storage.objects for select
+	using (
+		bucket_id = 'project-images'
+		and exists (
+			select 1
+			from public.projects p
+			where p.is_published = true
+			  and p.image_url = name
+		)
+	);

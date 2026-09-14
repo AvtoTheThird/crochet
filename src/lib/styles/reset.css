@@ -1,0 +1,11 @@
+/* App-wide base reset (marketing + studio) */
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: #0c0c0e;
+}
+
+body {
+	min-height: 100%;
+}

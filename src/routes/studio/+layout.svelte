@@ -1,13 +1,22 @@
 <script>
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/supabase/session.svelte.js';
 	import '$lib/studio/styles.css';
 
 	let { children } = $props();
 
+	onMount(() => {
+		document.documentElement.classList.add('studio-shell');
+		return () => {
+			document.documentElement.classList.remove('studio-shell');
+		};
+	});
+
 	$effect(() => {
 		if (!auth.loading && !auth.session) {
-			goto('/');
+			goto(resolve('/login'));
 		}
 	});
 </script>

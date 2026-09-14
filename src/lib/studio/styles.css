@@ -15,9 +15,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body { height: 100%; }
+/* Locked viewport only while studio is active (class toggled in studio layout) */
+html.studio-shell,
+html.studio-shell body {
+  height: 100%;
+}
 
-body {
+html.studio-shell body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Space Mono', monospace;
@@ -26,6 +30,14 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Outside studio, do not trap page scroll */
+html:not(.studio-shell) body {
+  overflow: auto;
+  height: auto;
+  display: block;
+  font-family: inherit;
 }
 
 header {
@@ -878,6 +890,7 @@ body:has(#main-layout[data-step="5"].sidebar-collapsed) .walk-topbar {
 
 .project-list-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 2px;
 }

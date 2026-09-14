@@ -20,9 +20,14 @@ create table public.projects (
 	completed_rows integer[] not null default '{}'::integer[],
 	studio_step integer not null default 2,
 	walk_index integer not null default 0,
+	is_published boolean not null default false,
+	gallery_description text not null default '',
+	published_at timestamptz,
+	cloned_from_id uuid references public.projects (id) on delete set null,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
 
 create index projects_user_id_idx on public.projects (user_id);
 create index projects_updated_at_idx on public.projects (updated_at desc);
+create index projects_published_idx on public.projects (published_at desc) where is_published = true;

@@ -8,7 +8,10 @@ create table public.users (
 	email text,
 	auth_provider public.auth_provider not null default 'email',
 	auth_provider_token text,
-	subscription_tier text not null default 'free',
+	subscription_tier text not null default 'free'
+		check (subscription_tier in ('free', 'maker', 'lifetime')),
+	free_project_used boolean not null default false,
+	subscription_updated_at timestamptz,
 	is_active boolean not null default true,
 	promo_code_used text,
 	created_at timestamptz not null default now(),

@@ -200,6 +200,12 @@ export function persistProject(options = {}) {
 		const userId = requireUserId();
 		let name = state.projectName || defaultProjectName();
 		let id = state.projectId;
+		const isNew = !id;
+
+		if (isNew) {
+			const { assertCanCreateProject } = await import('$lib/supabase/entitlements.js');
+			await assertCanCreateProject();
+		}
 
 		if (options.promptName) {
 			const prompted = prompt('Project name:', name);
@@ -226,6 +232,12 @@ export function persistProject(options = {}) {
 
 		state.projectId = id;
 		state.projectName = name;
+
+		if (isNew) {
+			const { markFreeProjectUsed } = await import('$lib/supabase/entitlements.js');
+			await markFreeProjectUsed();
+		}
+
 		return data;
 	};
 
@@ -241,6 +253,7 @@ export function autoSaveProject() {
 			return record;
 		})
 		.catch((e) => {
+			if (e?.code === 'PROJECT_LIMIT') return;
 			console.warn('Auto-save failed:', e);
 		});
 }
@@ -267,7 +280,10 @@ export function saveProject() {
 			}
 			renderProjectList();
 		})
-		.catch((e) => alert('Save failed: ' + (e.message || e)));
+		.catch((e) => {
+			if (e?.code === 'PROJECT_LIMIT') return;
+			alert('Save failed: ' + (e.message || e));
+		});
 }
 
 export async function deleteProject(id) {
@@ -419,20 +435,33 @@ export async function renderProjectList() {
 	}
 
 	try {
+		const { projectQuotaLabel } = await import('$lib/supabase/entitlements.js');
+		const quota = await projectQuotaLabel();
+
 		const supabase = getSupabase();
 		const { data: records, error } = await supabase
 			.from('projects')
-			.select('id, name, updated_at, studio_step')
+			.select('id, name, updated_at, studio_step, is_published, gallery_description')
 			.order('updated_at', { ascending: false });
 		if (error) throw error;
 
+		container.innerHTML = '';
+		if (quota) {
+			const q = document.createElement('p');
+			q.className = 'project-quota';
+			q.style.cssText = 'font-size:0.62rem;color:var(--text-dim);padding:0 0 4px;margin:0';
+			q.textContent = quota;
+			container.appendChild(q);
+		}
+
 		if (!records?.length) {
-			container.innerHTML =
-				'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">No saved projects yet.</p>';
+			const empty = document.createElement('p');
+			empty.style.cssText = 'font-size:0.65rem;color:var(--text-dim);padding:4px 0;margin:0';
+			empty.textContent = 'No saved projects yet.';
+			container.appendChild(empty);
 			return;
 		}
 
-		container.innerHTML = '';
 		const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Walk'];
 		for (const proj of records) {
 			let date = '';
@@ -442,20 +471,30 @@ export async function renderProjectList() {
 				/* ignore */
 			}
 			const stepN = proj.studio_step === 6 ? 5 : proj.studio_step;
+			const published = !!proj.is_published;
 			const item = document.createElement('div');
 			item.className =
 				'project-list-item' + (proj.id === state.projectId ? ' is-current' : '');
 			item.innerHTML =
 				`<div class="project-list-name">${escapeHtml(proj.name)}</div>` +
-				`<div class="project-list-meta">${date} · ${stepLabels[stepN] || 'Saved'}</div>` +
+				`<div class="project-list-meta">${date} · ${stepLabels[stepN] || 'Saved'}${published ? ' · In gallery' : ''}</div>` +
 				'<div class="project-list-actions">' +
 				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
+				`<button type="button" class="btn btn-secondary project-publish-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}" data-published="${published ? '1' : '0'}">${published ? 'Unpublish' : 'Publish'}</button>` +
 				`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +
 				'</div>';
 			container.appendChild(item);
 		}
 		container.querySelectorAll('.project-load-btn').forEach((btn) => {
 			btn.addEventListener('click', () => loadProjectById(btn.getAttribute('data-id')));
+		});
+		container.querySelectorAll('.project-publish-btn').forEach((btn) => {
+			btn.addEventListener('click', () =>
+				togglePublishProject(
+					btn.getAttribute('data-id'),
+					btn.getAttribute('data-published') === '1'
+				)
+			);
 		});
 		container.querySelectorAll('.project-delete-btn').forEach((btn) => {
 			btn.addEventListener('click', () => deleteProject(btn.getAttribute('data-id')));
@@ -464,6 +503,35 @@ export async function renderProjectList() {
 		console.warn('renderProjectList:', e);
 		container.innerHTML =
 			'<p style="font-size:0.65rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
+	}
+}
+
+async function togglePublishProject(id, isPublished) {
+	try {
+		const {
+			publishProjectToGallery,
+			unpublishProjectFromGallery
+		} = await import('$lib/supabase/gallery.js');
+		if (isPublished) {
+			if (!confirm('Remove this project from the public gallery?')) return;
+			await unpublishProjectFromGallery(id);
+		} else {
+			const supabase = getSupabase();
+			const { data: row } = await supabase
+				.from('projects')
+				.select('gallery_description')
+				.eq('id', id)
+				.maybeSingle();
+			const desc = prompt(
+				'Gallery description (shown publicly with the image):',
+				row?.gallery_description || ''
+			);
+			if (desc === null) return;
+			await publishProjectToGallery(id, desc);
+		}
+		renderProjectList();
+	} catch (e) {
+		alert((isPublished ? 'Unpublish' : 'Publish') + ' failed: ' + (e.message || e));
 	}
 }
 

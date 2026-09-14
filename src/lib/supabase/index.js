@@ -13,3 +13,26 @@ export {
 	syncProviderToken
 } from './auth.js';
 export { auth, initAuth, setAuthSession, isLoggedIn } from './session.svelte.js';
+export {
+	canCreateProject,
+	assertCanCreateProject,
+	markFreeProjectUsed,
+	upgradeToMakerDummy,
+	upgradeTierDummy,
+	projectQuotaLabel,
+	projectLimitForTier,
+	MAKER_PROJECT_LIMIT,
+	LIFETIME_PROJECT_LIMIT,
+	currentTier,
+	isMaker,
+	isLifetime,
+	isPaid
+} from './entitlements.js';
+export {
+	listGallery,
+	getGalleryItem,
+	publishProjectToGallery,
+	unpublishProjectFromGallery,
+	addGalleryProjectToMine,
+	signedProjectImageUrl
+} from './gallery.js';
