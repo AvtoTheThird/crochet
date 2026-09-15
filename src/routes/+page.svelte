@@ -44,30 +44,71 @@
 
 	/** @type {any[]} */
 	let galleryItems = $state([]);
-	let openStep = $state(/** @type {string | null} */ (null));
+	let openStep = $state('01');
+
+	const CARD_W = 180;
+	let carouselHalf = $state(/** @type {any[]} */ ([]));
+	let carouselLoop = $derived([...carouselHalf, ...carouselHalf]);
+	let carouselDurationSec = $derived(Math.max(20, Math.min(90, carouselHalf.length * 3)));
+	let carouselStatic = $derived(
+		carouselHalf.length > 0 && carouselHalf.length * CARD_W < 960
+	);
+
+	function rebuildCarouselHalf() {
+		const items = galleryItems;
+		if (!items.length) {
+			carouselHalf = [];
+			return;
+		}
+		const minWidth = typeof window !== 'undefined' ? Math.max(window.innerWidth, 960) : 1200;
+		const needed = Math.max(items.length, Math.ceil(minWidth / CARD_W));
+		const half = [];
+		while (half.length < needed) {
+			for (const it of items) {
+				half.push(it);
+				if (half.length >= needed) break;
+			}
+		}
+		carouselHalf = half;
+	}
 
 	onMount(async () => {
+		const openVideo = document.querySelector('.how-item.open video');
+		if (openVideo instanceof HTMLVideoElement) {
+			openVideo.play().catch(() => {});
+		}
+
 		try {
 			galleryItems = await listGalleryMostLiked(24);
 		} catch (e) {
 			console.warn('landing gallery:', e);
 		}
+		rebuildCarouselHalf();
+
+		let resizeTimer;
+		const onResize = () => {
+			clearTimeout(resizeTimer);
+			resizeTimer = setTimeout(rebuildCarouselHalf, 150);
+		};
+		window.addEventListener('resize', onResize);
+		return () => {
+			clearTimeout(resizeTimer);
+			window.removeEventListener('resize', onResize);
+		};
 	});
 
 	function onStepEnter(n, el) {
 		openStep = n;
+		const list = el?.closest?.('ol');
+		if (list) {
+			for (const video of list.querySelectorAll('video')) {
+				if (video instanceof HTMLVideoElement) video.pause();
+			}
+		}
 		const video = el?.querySelector?.('video');
 		if (video instanceof HTMLVideoElement) {
 			video.currentTime = 0;
 			video.play().catch(() => {});
-		}
-	}
-
-	function onStepLeave(n, el) {
-		if (openStep === n) openStep = null;
-		const video = el?.querySelector?.('video');
-		if (video instanceof HTMLVideoElement) {
-			video.pause();
 		}
 	}
 </script>
@@ -130,7 +171,6 @@
 						role="group"
 						aria-label={`${step.title}: ${step.body}`}
 						onpointerenter={(e) => onStepEnter(step.n, e.currentTarget)}
-						onpointerleave={(e) => onStepLeave(step.n, e.currentTarget)}
 					>
 						<div class="how-row">
 							<img src={step.icon} alt={step.alt} width="40" height="40" />
@@ -159,11 +199,18 @@
 			Browse patterns other makers publish. Preview image and description for free. Paid plans
 			unlock full pattern data and Add to my projects.
 		</p>
+		<p class="gallery-promo-cta">
+			<a class="site-btn" href={resolve('/gallery')}>Browse gallery</a>
+		</p>
 
 		{#if galleryItems.length}
-			<div class="carousel" aria-label="Gallery project carousel">
-				<div class="carousel-track">
-					{#each [...galleryItems, ...galleryItems] as item, i (item.id + '-' + i)}
+			<div
+				class="carousel"
+				class:static={carouselStatic}
+				aria-label="Gallery project carousel"
+			>
+				<div class="carousel-track" style="animation-duration: {carouselDurationSec}s">
+					{#each carouselLoop as item, i (item.id + '-' + i)}
 						<a
 							class="carousel-card"
 							href={resolve('/gallery/[id]', { id: item.id })}
@@ -197,10 +244,6 @@
 				<a href={resolve('/gallery')}>Open the gallery</a>
 			</p>
 		{/if}
-
-		<p class="gallery-promo-cta">
-			<a class="site-btn" href={resolve('/gallery')}>Browse gallery</a>
-		</p>
 	</section>
 
 	<section class="site-section pricing-teaser" aria-labelledby="pricing-teaser-heading">
@@ -425,9 +468,13 @@
 	}
 
 	.gallery-promo-lead {
-		margin: 0 auto 28px;
+		margin: 0 auto 16px;
 		color: var(--site-muted);
 		max-width: 40rem;
+	}
+
+	.gallery-promo-cta {
+		margin: 0 auto 28px;
 	}
 
 	.carousel {
@@ -436,7 +483,7 @@
 		border-top: 1px solid var(--site-border);
 		border-bottom: 1px solid var(--site-border);
 		background: var(--site-bg);
-		margin-bottom: 28px;
+		margin-bottom: 0;
 	}
 
 	.carousel-track {
@@ -448,6 +495,12 @@
 	.carousel:hover .carousel-track,
 	.carousel:focus-within .carousel-track {
 		animation-play-state: paused;
+	}
+
+	.carousel.static .carousel-track {
+		animation: none;
+		width: 100%;
+		justify-content: center;
 	}
 
 	@keyframes carousel-scroll {
@@ -516,10 +569,6 @@
 		letter-spacing: 0.06em;
 		color: var(--site-muted);
 		opacity: 0.85;
-	}
-
-	.gallery-promo-cta {
-		margin: 0 auto;
 	}
 
 	.plan-facts {

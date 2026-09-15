@@ -112,8 +112,8 @@
 						<img
 							src={item.imageSrc}
 							alt={`Pattern preview for ${item.name}`}
-							width={item.image_width || 400}
-							height={item.image_height || 400}
+							width="512"
+							height="512"
 						/>
 					{:else}
 						<div class="detail-ph" role="img" aria-label="Preview unavailable"></div>
@@ -199,6 +199,7 @@
 	.detail-media img,
 	.detail-ph {
 		width: 100%;
+		min-height: min(70vh, 520px);
 		max-height: 70vh;
 		object-fit: contain;
 		background: #101012;

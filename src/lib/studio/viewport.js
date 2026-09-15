@@ -18,11 +18,13 @@ export function updateBaseDisplayScale() {
   if (!state.workingCanvas) return;
   const area = dom.canvasArea;
   // Fit to the visible viewport (not scrollable padding margins).
+  // Allow upscaling so small pixel-art saves still fill the studio view.
   const maxW = Math.max(80, area.clientWidth * 0.92);
   const maxH = Math.max(80, area.clientHeight * 0.92);
   const sw = state.workingCanvas.width;
   const sh = state.workingCanvas.height;
-  state.baseDisplayScale = Math.min(1, maxW / sw, maxH / sh);
+  state.baseDisplayScale = Math.min(maxW / sw, maxH / sh);
+  if (state.baseDisplayScale > 64) state.baseDisplayScale = 64;
   if (state.baseDisplayScale < 0.125) state.baseDisplayScale = 0.125;
 }
 

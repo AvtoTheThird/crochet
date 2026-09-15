@@ -27,6 +27,71 @@ function canvasToBlob(canvas) {
 	});
 }
 
+/**
+ * Scaled pixel art from the quantized grid (solid stitch cells, not the photo).
+ * Cell size follows grid metrics, upscaled so the long edge is at least ~512px.
+ * @returns {{ canvas: HTMLCanvasElement, pixelWidth: number, pixelHeight: number } | null}
+ */
+function buildPixelArtCanvas() {
+	if (!state.countGrid.length || !state.countMetrics) return null;
+	const { cols, rows } = state.countMetrics;
+	if (!cols || !rows) return null;
+
+	const MIN_EDGE = 512;
+	const MAX_CELL = 48;
+	let cellW = Math.max(1, Math.round(Number(state.countMetrics.pw) || 1));
+	let cellH = Math.max(1, Math.round(Number(state.countMetrics.ph) || 1));
+
+	const longEdge = Math.max(cols * cellW, rows * cellH);
+	if (longEdge < MIN_EDGE) {
+		const scale = Math.ceil(MIN_EDGE / Math.max(cols, rows));
+		const cell = Math.min(MAX_CELL, Math.max(cellW, cellH, scale));
+		cellW = cell;
+		cellH = cell;
+	}
+
+	const canvas = document.createElement('canvas');
+	canvas.width = cols * cellW;
+	canvas.height = rows * cellH;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return null;
+	ctx.imageSmoothingEnabled = false;
+
+	for (let row = 0; row < rows; row++) {
+		for (let col = 0; col < cols; col++) {
+			const cell = state.countGrid[row]?.[col];
+			if (!cell) continue;
+			ctx.fillStyle = `rgb(${cell.r},${cell.g},${cell.b})`;
+			ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
+		}
+	}
+
+	return { canvas, pixelWidth: cellW, pixelHeight: cellH };
+}
+
+/**
+ * Prefer generated pixel art after grid/colors; fall back to working canvas.
+ */
+function resolveSaveImage() {
+	const pixelArt = buildPixelArtCanvas();
+	if (pixelArt) {
+		return {
+			canvas: pixelArt.canvas,
+			width: pixelArt.canvas.width,
+			height: pixelArt.canvas.height,
+			pixelWidth: pixelArt.pixelWidth,
+			pixelHeight: pixelArt.pixelHeight
+		};
+	}
+	return {
+		canvas: state.workingCanvas,
+		width: state.workingCanvas.width,
+		height: state.workingCanvas.height,
+		pixelWidth: readNum('px-w', state.countMetrics?.pw || 8),
+		pixelHeight: readNum('px-h', state.countMetrics?.ph || 8)
+	};
+}
+
 function defaultProjectName() {
 	if (state.projectName) return state.projectName;
 	if (state.loadedFileName) {
@@ -163,9 +228,7 @@ function currentWalkRow() {
 	return step?.logRow ?? 0;
 }
 
-async function buildDbRow(userId, projectId, name, imagePathValue) {
-	const pw = readNum('px-w', state.countMetrics?.pw || 8);
-	const ph = readNum('px-h', state.countMetrics?.ph || 8);
+async function buildDbRow(userId, projectId, name, imagePathValue, imageMeta) {
 	const tolerance = readInt('tolerance', 20);
 	const gridOpacity = readInt('grid-opacity', 35);
 
@@ -174,10 +237,10 @@ async function buildDbRow(userId, projectId, name, imagePathValue) {
 		user_id: userId,
 		name,
 		image_url: imagePathValue,
-		image_width: state.workingCanvas.width,
-		image_height: state.workingCanvas.height,
-		pixel_width: Number(pw),
-		pixel_height: Number(ph),
+		image_width: imageMeta.width,
+		image_height: imageMeta.height,
+		pixel_width: Number(imageMeta.pixelWidth),
+		pixel_height: Number(imageMeta.pixelHeight),
 		color_tolerance: tolerance,
 		start_direction: directionToDb(state.startDirection),
 		palette: buildPaletteJson(),
@@ -215,7 +278,8 @@ export function persistProject(options = {}) {
 
 		if (!id) id = crypto.randomUUID();
 
-		const blob = await canvasToBlob(state.workingCanvas);
+		const image = resolveSaveImage();
+		const blob = await canvasToBlob(image.canvas);
 		const path = imagePath(userId, id);
 		const supabase = getSupabase();
 
@@ -226,7 +290,7 @@ export function persistProject(options = {}) {
 		});
 		if (uploadError) throw uploadError;
 
-		const row = await buildDbRow(userId, id, name, path);
+		const row = await buildDbRow(userId, id, name, path, image);
 		const { data, error } = await supabase.from('projects').upsert(row).select().single();
 		if (error) throw error;
 
@@ -513,18 +577,21 @@ async function togglePublishProject(id, isPublished) {
 			if (!confirm('Remove this project from the public gallery?')) return;
 			await unpublishProjectFromGallery(id);
 		} else {
+			// Refresh storage image (pixel art after colors) before publishing.
+			const saved = await persistProject({ silent: true });
+			const projectId = saved?.id || id;
 			const supabase = getSupabase();
 			const { data: row } = await supabase
 				.from('projects')
 				.select('gallery_description')
-				.eq('id', id)
+				.eq('id', projectId)
 				.maybeSingle();
 			const desc = prompt(
 				'Gallery description (shown publicly with the image):',
 				row?.gallery_description || ''
 			);
 			if (desc === null) return;
-			await publishProjectToGallery(id, desc);
+			await publishProjectToGallery(projectId, desc);
 		}
 		renderProjectList();
 	} catch (e) {
