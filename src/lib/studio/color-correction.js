@@ -1,8 +1,8 @@
 import { state } from "./state.js";
 import { dom, mainCtx, highlightCtx } from "./dom.js";
 import { rgbToHex, hexToRgb, colorsMatch, nextId } from "./utils.js";
-import { getGridMetrics, averageCellColor, snapColor } from "./grid.js";
-import { renderWorkingCanvasDisplay } from "./viewport.js";
+import { getGridMetrics, averageCellColor, snapColor, trimWorkingCanvasToGrid } from "./grid.js";
+import { renderWorkingCanvasDisplay, updateBaseDisplayScale, resetZoomBakeCache } from "./viewport.js";
 
 function createYarn(r, g, b, name = "") {
   const hex = rgbToHex(r, g, b);
@@ -652,6 +652,10 @@ export function renderPaletteUI() {
 }
 
 export function enterColorCorrection() {
+  if (trimWorkingCanvasToGrid()) {
+    resetZoomBakeCache();
+    updateBaseDisplayScale();
+  }
   buildRawColorGrid();
   renderPaletteUI();
 }

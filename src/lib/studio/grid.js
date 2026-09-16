@@ -12,6 +12,36 @@ export function getGridMetrics() {
   return { pw, ph, iw, ih, cols, rows };
 }
 
+/**
+ * Crop the working canvas to an exact cols×pw by rows×ph region.
+ * Removes the leftover strip that otherwise shows as a black bar in color preview.
+ * @returns {boolean} true if the canvas was resized
+ */
+export function trimWorkingCanvasToGrid() {
+  if (!state.workingCanvas) return false;
+  const { pw, ph, iw, ih, cols, rows } = getGridMetrics();
+  const tw = Math.min(iw, Math.max(1, Math.round(cols * pw)));
+  const th = Math.min(ih, Math.max(1, Math.round(rows * ph)));
+  if (tw === iw && th === ih) return false;
+
+  const next = document.createElement('canvas');
+  next.width = tw;
+  next.height = th;
+  const ctx = next.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(state.workingCanvas, 0, 0, tw, th, 0, 0, tw, th);
+
+  state.workingCanvas = next;
+  state.workingCtx = ctx;
+  state.cropRect = { x: 0, y: 0, w: tw, h: th };
+  state.pixelData = null;
+
+  // Keep the user's cell size; refresh stitch counts for the trimmed bounds.
+  syncPixelCountFromCellSize();
+  return true;
+}
+
 export function syncPixelCountFromCellSize() {
   if (!state.workingCanvas) return;
   const { cols, rows } = getGridMetrics();

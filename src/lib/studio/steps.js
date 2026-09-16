@@ -1,5 +1,6 @@
 import { state, STEP_COUNT } from './state.js';
 import { syncPixelCountFromCellSize, drawGrid } from './grid.js';
+import { formatGridNumber } from './utils.js';
 import { renderResults } from './results.js';
 import { enableCrop, disableCrop } from './crop.js';
 import { renderPaletteUI, clearHighlight } from './color-correction.js';
@@ -32,6 +33,13 @@ export function applyStep(n) {
 	if (n !== 2) disableCrop();
 
 	if (n === 3) {
+		// Prefer cell sizes locked in at color correction so inputs don't drift.
+		if (state.countMetrics?.pw && state.countMetrics?.ph) {
+			const pxW = document.getElementById('px-w');
+			const pxH = document.getElementById('px-h');
+			if (pxW) pxW.value = formatGridNumber(state.countMetrics.pw);
+			if (pxH) pxH.value = formatGridNumber(state.countMetrics.ph);
+		}
 		syncPixelCountFromCellSize();
 		drawGrid();
 	}
