@@ -10,6 +10,8 @@ import { resolve } from '$app/paths';
 import { getSupabase } from './client.js';
 import { auth, setAuthSession } from './session.svelte.js';
 
+// Note: subscription_tier is not writable from the client (column grants + payment webhook).
+
 export const MAKER_PROJECT_LIMIT = 5;
 export const LIFETIME_PROJECT_LIMIT = 20;
 
@@ -121,38 +123,18 @@ export async function markFreeProjectUsed() {
 }
 
 /**
- * Dummy paid upgrade (Stripe later).
- * @param {'maker' | 'lifetime'} tier
+ * Client-side tier upgrades are disabled.
+ * Paid entitlements are applied only by trusted payment webhooks (Edge Functions)
+ * writing to `payments` + `users.subscription_tier` via the service role.
+ * @param {'maker' | 'lifetime'} _tier
  */
-export async function upgradeTierDummy(tier) {
-	const userId = auth.user?.id;
-	if (!userId) throw new Error('You must be logged in to upgrade.');
-	if (tier !== 'maker' && tier !== 'lifetime') {
-		throw new Error('Unknown plan');
-	}
-
-	const supabase = getSupabase();
-	const { error } = await supabase
-		.from('users')
-		.update({
-			subscription_tier: tier,
-			subscription_updated_at: new Date().toISOString()
-		})
-		.eq('id', userId);
-	if (error) throw error;
-
-	if (auth.session) {
-		await setAuthSession(auth.session);
-	} else if (auth.profile) {
-		auth.profile = {
-			...auth.profile,
-			subscription_tier: tier,
-			subscription_updated_at: new Date().toISOString()
-		};
-	}
+export async function upgradeTierDummy(_tier) {
+	throw new Error(
+		'Client upgrades are disabled. Paid plans are activated after a verified payment webhook.'
+	);
 }
 
-/** @deprecated use upgradeTierDummy('maker') */
+/** @deprecated Client upgrades removed — payment webhook only. */
 export async function upgradeToMakerDummy() {
 	return upgradeTierDummy('maker');
 }

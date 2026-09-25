@@ -1,9 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { getSupabase } from '$lib/supabase/client.js';
 	import { syncProviderToken } from '$lib/supabase/auth.js';
 	import { setAuthSession } from '$lib/supabase/session.svelte.js';
+	import { applyReferralCookieIfPresent } from '$lib/referral/index.js';
 
 	let message = $state('Completing sign-in…');
 
@@ -28,10 +30,16 @@
 				await syncProviderToken(sessionData.session);
 			}
 
-			goto('/studio/load', { replaceState: true });
+			try {
+				await applyReferralCookieIfPresent();
+			} catch (refErr) {
+				console.warn('Referral apply failed', refErr);
+			}
+
+			goto(resolve('/studio/load'), { replaceState: true });
 		} catch (e) {
 			message = e?.message || 'Sign-in failed';
-			setTimeout(() => goto('/', { replaceState: true }), 2500);
+			setTimeout(() => goto(resolve('/'), { replaceState: true }), 2500);
 		}
 	});
 </script>

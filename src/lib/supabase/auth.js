@@ -83,6 +83,31 @@ export async function signUpWithPassword(fields) {
 }
 
 /**
+ * Apply referral after auth when a manual code was entered on signup,
+ * or apply the referral cookie when present.
+ * Manual codes override cookie attribution while unlocked.
+ * @param {string | null | undefined} manualCode
+ */
+export async function finalizeSignupReferral(manualCode) {
+	const { applyManualReferralCode, applyReferralCookieIfPresent, lookupReferralCode } =
+		await import('$lib/referral/index.js');
+	const { setReferralCookie } = await import('$lib/referral/cookie.js');
+
+	const trimmed = manualCode?.trim() ?? '';
+	if (trimmed) {
+		const looked = await lookupReferralCode(trimmed);
+		if (!looked?.valid || !looked.code) {
+			throw new Error('Invalid referral code');
+		}
+		setReferralCookie(looked.code);
+		await applyManualReferralCode(looked.code);
+		return;
+	}
+
+	await applyReferralCookieIfPresent();
+}
+
+/**
  * Sign in with email or username + password.
  * @param {string} identifier
  * @param {string} password
@@ -96,6 +121,12 @@ export async function signInWithPassword(identifier, password) {
 	if (error) throw error;
 
 	await setAuthSession(data.session);
+	try {
+		const { applyReferralCookieIfPresent } = await import('$lib/referral/index.js');
+		await applyReferralCookieIfPresent();
+	} catch (e) {
+		console.warn('referral cookie apply:', e);
+	}
 	return data;
 }
 

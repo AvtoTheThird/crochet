@@ -1,0 +1,8 @@
+-- Optional seed: example creator + referral code (run manually in SQL editor if desired)
+--
+-- insert into public.creators (name, channel_url, commission_percentage_cut)
+-- values ('Example Creator', 'https://example.com/channel', 50.00)
+-- returning id;
+--
+-- insert into public.referral_codes (creator_id, code, active)
+-- values ('<creator-id-from-above>', 'example50', true);

@@ -3,7 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/supabase/session.svelte.js';
-	import { signInWithPassword, signUpWithPassword } from '$lib/supabase/auth.js';
+	import { signInWithPassword, signUpWithPassword, finalizeSignupReferral } from '$lib/supabase/auth.js';
+	import { lookupReferralCode } from '$lib/referral/index.js';
+	import { setReferralCookie } from '$lib/referral/cookie.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -18,6 +20,7 @@
 	let password = $state('');
 	let firstName = $state('');
 	let lastName = $state('');
+	let referralCode = $state('');
 
 	onMount(() => {
 		const id = setInterval(() => {
@@ -44,6 +47,13 @@
 				await signInWithPassword(identifier, password);
 				goto(resolve('/studio/load'));
 			} else {
+				const manual = referralCode.trim();
+				if (manual) {
+					const looked = await lookupReferralCode(manual);
+					if (!looked?.valid) {
+						throw new Error('Invalid referral code');
+					}
+				}
 				const data = await signUpWithPassword({
 					email,
 					password,
@@ -52,8 +62,21 @@
 					lastName
 				});
 				if (data.session) {
+					try {
+						await finalizeSignupReferral(manual || null);
+					} catch (refErr) {
+						console.warn('Referral apply failed', refErr);
+					}
 					goto(resolve('/studio/load'));
 				} else {
+					if (manual) {
+						try {
+							const looked = await lookupReferralCode(manual);
+							if (looked?.valid && looked.code) setReferralCookie(looked.code);
+						} catch (refErr) {
+							console.warn('Referral cookie save failed', refErr);
+						}
+					}
 					infoMsg =
 						'Account created. Check your email to confirm, then log in. (Or disable email confirmation in Supabase Auth settings for instant access.)';
 					mode = 'login';
@@ -144,6 +167,15 @@
 							autocomplete="new-password"
 							required
 							minlength="6"
+						/>
+					</label>
+					<label>
+						Referral code (optional)
+						<input
+							type="text"
+							bind:value={referralCode}
+							autocomplete="off"
+							spellcheck="false"
 						/>
 					</label>
 				{/if}

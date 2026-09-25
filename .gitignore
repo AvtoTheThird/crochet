@@ -27,3 +27,6 @@ _legacy
 
 .cursor
 .flitt-integration-skill
+
+# Separate admin dashboard (local-only; do not push)
+/mari-admin/

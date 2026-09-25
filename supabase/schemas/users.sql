@@ -1,4 +1,7 @@
 -- Application user profile (1:1 with auth.users)
+-- Note: authenticated clients may update profile fields only; subscription_tier /
+-- subscription_updated_at are reserved for payment webhook / service role
+-- (see migration 20260916120000_affiliate_payments.sql column grants).
 
 create table public.users (
 	id uuid primary key references auth.users (id) on delete cascade,

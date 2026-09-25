@@ -10,7 +10,8 @@ export {
 	signInWithGoogle,
 	signOut,
 	getUserProfile,
-	syncProviderToken
+	syncProviderToken,
+	finalizeSignupReferral
 } from './auth.js';
 export { auth, initAuth, setAuthSession, isLoggedIn } from './session.svelte.js';
 export {
