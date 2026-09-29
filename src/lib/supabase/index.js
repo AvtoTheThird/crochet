@@ -39,3 +39,11 @@ export {
 	addGalleryProjectToMine,
 	signedProjectImageUrl
 } from './gallery.js';
+export {
+	updateDisplayName,
+	changePassword,
+	uploadAvatar,
+	getMySubscription,
+	getMyPaddleCustomerId,
+	cancelMySubscription
+} from './profile.js';

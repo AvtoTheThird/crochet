@@ -10,6 +10,7 @@
 		{ href: '/codes', label: 'Referral codes' },
 		{ href: '/referrals', label: 'Attributions' },
 		{ href: '/payments', label: 'Payments' },
+		{ href: '/subscriptions', label: 'Subscriptions' },
 		{ href: '/commissions', label: 'Commissions' }
 	];
 </script>

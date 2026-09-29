@@ -14,6 +14,7 @@ create table public.users (
 	subscription_tier text not null default 'free'
 		check (subscription_tier in ('free', 'maker', 'lifetime')),
 	free_project_used boolean not null default false,
+	avatar_url text,
 	subscription_updated_at timestamptz,
 	is_active boolean not null default true,
 	promo_code_used text,

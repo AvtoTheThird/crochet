@@ -1,6 +1,6 @@
 # Supabase
 
-Structured SQL for PixelCount Studio.
+Structured SQL for Qsovio.
 
 ```
 supabase/

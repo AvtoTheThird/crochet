@@ -10,7 +10,12 @@
  * affiliate_commissions unique earn indexes.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import {
+	subscriptionStatusGrantsAccess,
+	subscriptionStatusRevokesAccess
+} from './access.ts';
+import type { SubscriptionMirrorInput } from './paddle.ts';
 
 export type ProductTier = 'maker' | 'lifetime';
 
@@ -225,6 +230,221 @@ export async function processSuccessfulPayment(
 		entitlementApplied: true,
 		commissionId,
 		commissionSkippedReason
+	};
+}
+
+/**
+ * Resolve our internal users.id for a webhook event.
+ * Priority: explicit custom_data user id → existing mirrored subscription →
+ * existing payment for the same Paddle customer. Returns null if unresolved.
+ */
+export async function resolveUserId(
+	admin: SupabaseClient,
+	opts: {
+		customUserId?: string | null;
+		subscriptionId?: string | null;
+		paddleCustomerId?: string | null;
+	}
+): Promise<string | null> {
+	if (opts.customUserId) return opts.customUserId;
+
+	if (opts.subscriptionId) {
+		const { data } = await admin
+			.from('subscriptions')
+			.select('user_id')
+			.eq('provider', 'paddle')
+			.eq('provider_subscription_id', opts.subscriptionId)
+			.maybeSingle();
+		if (data?.user_id) return data.user_id as string;
+	}
+
+	if (opts.paddleCustomerId) {
+		const { data } = await admin
+			.from('subscriptions')
+			.select('user_id')
+			.eq('provider', 'paddle')
+			.eq('provider_customer_id', opts.paddleCustomerId)
+			.not('user_id', 'is', null)
+			.limit(1)
+			.maybeSingle();
+		if (data?.user_id) return data.user_id as string;
+	}
+
+	return null;
+}
+
+/**
+ * Record a declined/failed payment for visibility. Never grants entitlement or
+ * commission. Idempotent on (provider, provider_payment_id).
+ */
+export async function recordFailedPayment(
+	admin: SupabaseClient,
+	input: {
+		userId: string | null;
+		provider: string;
+		providerPaymentId: string;
+		subscriptionId?: string | null;
+		productTier?: ProductTier | null;
+		amount: number;
+		currency: string;
+		metadata?: Record<string, unknown>;
+	}
+): Promise<{ paymentId: string | null; recorded: boolean }> {
+	const { data: existing } = await admin
+		.from('payments')
+		.select('id, processed_at, status')
+		.eq('provider', input.provider)
+		.eq('provider_payment_id', input.providerPaymentId)
+		.maybeSingle();
+
+	// Never downgrade an already-succeeded/processed payment.
+	if (existing?.processed_at || existing?.status === 'succeeded') {
+		return { paymentId: existing.id, recorded: false };
+	}
+
+	if (existing?.id) {
+		const { error } = await admin
+			.from('payments')
+			.update({ status: 'failed', metadata: input.metadata ?? {} })
+			.eq('id', existing.id);
+		if (error) throw error;
+		return { paymentId: existing.id, recorded: true };
+	}
+
+	if (!input.userId) {
+		// Can't insert without a user (NOT NULL). Nothing to store, but not fatal.
+		return { paymentId: null, recorded: false };
+	}
+
+	const { data: inserted, error } = await admin
+		.from('payments')
+		.insert({
+			user_id: input.userId,
+			provider: input.provider,
+			provider_payment_id: input.providerPaymentId,
+			subscription_id: input.subscriptionId ?? null,
+			product_tier: input.productTier ?? null,
+			amount: input.amount,
+			currency: input.currency,
+			status: 'failed',
+			metadata: input.metadata ?? {}
+		})
+		.select('id')
+		.single();
+	if (error) throw error;
+	return { paymentId: inserted.id, recorded: true };
+}
+
+export type SubscriptionSyncResult = {
+	subscriptionId: string;
+	userId: string | null;
+	status: string;
+	entitlement: 'granted' | 'revoked' | 'unchanged';
+	tier: string | null;
+};
+
+/**
+ * Upsert the subscription mirror and apply the resulting entitlement.
+ *
+ * Access rules:
+ *  - active/trialing/past_due  → grant product_tier
+ *  - paused/canceled           → revoke (back to 'free')
+ *  - a scheduled cancel/pause while status stays active is NOT terminal:
+ *    access is preserved because we key entitlement off `status`.
+ *  - a 'lifetime' entitlement (one-time purchase) is never downgraded here.
+ */
+export async function upsertSubscription(
+	admin: SupabaseClient,
+	m: SubscriptionMirrorInput
+): Promise<SubscriptionSyncResult> {
+	const { data: existing } = await admin
+		.from('subscriptions')
+		.select('id, user_id, product_tier')
+		.eq('provider', m.provider)
+		.eq('provider_subscription_id', m.providerSubscriptionId)
+		.maybeSingle();
+
+	const userId =
+		m.userId ??
+		(existing?.user_id as string | null) ??
+		(await resolveUserId(admin, {
+			subscriptionId: m.providerSubscriptionId,
+			paddleCustomerId: m.providerCustomerId
+		}));
+
+	const productTier = m.productTier ?? (existing?.product_tier as ProductTier | null) ?? null;
+
+	const row = {
+		provider: m.provider,
+		provider_subscription_id: m.providerSubscriptionId,
+		provider_customer_id: m.providerCustomerId,
+		user_id: userId,
+		status: m.status,
+		product_tier: productTier,
+		price_id: m.priceId,
+		product_id: m.productId,
+		currency: m.currency,
+		scheduled_change_action: m.scheduledChangeAction,
+		scheduled_change_at: m.scheduledChangeAt,
+		current_period_start: m.currentPeriodStart,
+		current_period_end: m.currentPeriodEnd,
+		canceled_at: m.canceledAt,
+		metadata: m.metadata ?? {}
+	};
+
+	const { error: upsertErr } = await admin
+		.from('subscriptions')
+		.upsert(row, { onConflict: 'provider,provider_subscription_id' });
+	if (upsertErr) throw upsertErr;
+
+	let entitlement: 'granted' | 'revoked' | 'unchanged' = 'unchanged';
+	let tier: string | null = null;
+
+	if (userId) {
+		if (subscriptionStatusGrantsAccess(m.status) && productTier) {
+			// Don't clobber a permanent lifetime entitlement with a lower tier.
+			const { data: u } = await admin
+				.from('users')
+				.select('subscription_tier')
+				.eq('id', userId)
+				.maybeSingle();
+			if (u?.subscription_tier !== 'lifetime') {
+				const { error } = await admin
+					.from('users')
+					.update({ subscription_tier: productTier, subscription_updated_at: new Date().toISOString() })
+					.eq('id', userId);
+				if (error) throw error;
+				entitlement = 'granted';
+				tier = productTier;
+			} else {
+				tier = 'lifetime';
+			}
+		} else if (subscriptionStatusRevokesAccess(m.status)) {
+			const { data: u } = await admin
+				.from('users')
+				.select('subscription_tier')
+				.eq('id', userId)
+				.maybeSingle();
+			if (u?.subscription_tier !== 'lifetime') {
+				const { error } = await admin
+					.from('users')
+					.update({ subscription_tier: 'free', subscription_updated_at: new Date().toISOString() })
+					.eq('id', userId);
+				if (error) throw error;
+				entitlement = 'revoked';
+				tier = 'free';
+			} else {
+				tier = 'lifetime';
+			}
+		}
+	}
+
+	return {
+		subscriptionId: m.providerSubscriptionId,
+		userId,
+		status: m.status,
+		entitlement,
+		tier
 	};
 }
 

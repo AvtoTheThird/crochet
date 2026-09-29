@@ -140,7 +140,7 @@
 
 		<div class="hero-copy">
 			<p class="hero-eyebrow">Tapestry from pixel art</p>
-			<h1>PixelCount Studio</h1>
+			<h1>Qsovio</h1>
 			<p class="hero-lead">
 				Turn pixel art into run-length stitch patterns you can follow stitch by stitch.
 			</p>

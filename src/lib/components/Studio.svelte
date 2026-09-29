@@ -152,7 +152,7 @@
 
 <header>
   <div>
-    <h1><a href={resolve("/")}>PixelCount Studio</a></h1>
+    <h1><a href={resolve("/")}>Qsovio</a></h1>
     <div class="sub">Pixel Art Run-Length Encoder</div>
   </div>
   <div class="header-actions">

@@ -1,4 +1,4 @@
-# PixelCount Studio
+# Qsovio
 
 SvelteKit app for turning uploaded pixel art into tapestry / run-length stitch patterns.
 

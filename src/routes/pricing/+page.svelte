@@ -7,10 +7,149 @@
 		getMyReferralAttribution
 	} from '$lib/referral/index.js';
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
+	import { getPaddle } from '$lib/paddle/client.js';
+	import { getMyPaddleCustomerId } from '$lib/supabase/profile.js';
+	import { tiers, allPriceIds, priceIdFor } from '$lib/paddle/tiers.js';
 	import '$lib/styles/site.css';
 
+	// ---- Paddle pricing state -------------------------------------------------
+	/** @type {'month' | 'year'} */
+	let billingCycle = $state('month');
+	/** Map of priceId -> Paddle's already-formatted total string. */
+	let priceMap = $state(/** @type {Record<string, string>} */ ({}));
+	let pricesLoading = $state(true);
+	let pricesError = $state('');
+	/** ISO country code detected server-side, or null (Paddle auto-detects). */
+	let country = $state(/** @type {string | null} */ (null));
+	/** id of the tier whose checkout is currently opening. */
+	let checkoutBusy = $state('');
+	let checkoutError = $state('');
+
+	const tier = $derived(currentTier());
+	/** Paddle customer id (ctm_...) for Retain, when the user is an existing customer. */
+	let pwCustomerId = $state(/** @type {string | null} */ (null));
+
+	onMount(() => {
+		loadPrices();
+	});
+
+	/** Resolve Paddle instance, attaching the customer id for Retain when known. */
+	async function resolvePaddle() {
+		if (!pwCustomerId && auth.user?.id) {
+			try {
+				pwCustomerId = await getMyPaddleCustomerId();
+			} catch {
+				pwCustomerId = null;
+			}
+		}
+		return getPaddle(pwCustomerId ? { pwCustomerId } : {});
+	}
+
+	async function loadPrices() {
+		pricesLoading = true;
+		pricesError = '';
+		try {
+			const paddle = await resolvePaddle();
+			if (!paddle) throw new Error('Paddle failed to initialize.');
+
+			// Country is detected server-side from request headers (see /api/geo).
+			// If unknown, we DO NOT pass a country and let Paddle.js auto-detect by IP.
+			try {
+				const res = await fetch('/api/geo');
+				if (res.ok) {
+					const data = await res.json();
+					country = typeof data?.country === 'string' ? data.country : null;
+				}
+			} catch {
+				country = null;
+			}
+
+			/** @type {{ items: { priceId: string; quantity: number }[]; address?: { countryCode: string } }} */
+			const request = {
+				items: allPriceIds().map((priceId) => ({ priceId, quantity: 1 }))
+			};
+			// Only attach an address when we have a real ISO country code.
+			if (country) {
+				request.address = { countryCode: country };
+			}
+
+			const result = await paddle.PricePreview(request);
+			const map = /** @type {Record<string, string>} */ ({});
+			for (const item of result.data.details.lineItems) {
+				// Display ONLY the string Paddle returns — no math, no reformatting.
+				map[item.price.id] = item.formattedTotals.subtotal;
+			}
+			priceMap = map;
+		} catch (e) {
+			pricesError = e instanceof Error ? e.message : 'Could not load prices.';
+		} finally {
+			pricesLoading = false;
+		}
+	}
+
+	/**
+	 * @param {import('$lib/paddle/tiers.js').Tier} t
+	 */
+	function priceLabelFor(t) {
+		const id = priceIdFor(t, billingCycle);
+		return priceMap[id] ?? '';
+	}
+
+	/**
+	 * @param {import('$lib/paddle/tiers.js').Tier} t
+	 */
+	async function subscribe(t) {
+		checkoutError = '';
+
+		// Require login: entitlement + affiliate attribution depend on user_id,
+		// which is only present when signed in. Never open anonymous checkout.
+		const userId = auth.user?.id;
+		if (!userId) {
+			await goto(resolve('/login'));
+			return;
+		}
+
+		checkoutBusy = t.id;
+		try {
+			const paddle = await resolvePaddle();
+			if (!paddle) throw new Error('Paddle failed to initialize.');
+
+			const priceId = priceIdFor(t, billingCycle);
+			const email = auth.user?.email;
+
+			paddle.Checkout.open({
+				items: [{ priceId, quantity: 1 }],
+				// Prefill the email only when the visitor is signed in.
+				...(email ? { customer: { email } } : {}),
+				// custom_data flows to the transaction + subscription and is read by
+				// the payment-webhook to map events to our user and entitlement.
+				// t.id is 'maker' | 'lifetime', matching our product_tier.
+				customData: {
+					user_id: userId,
+					product_tier: t.id
+				},
+				settings: {
+					displayMode: 'overlay',
+					variant: 'one-page',
+					theme: 'light',
+					// successUrl must be an absolute http(s) URL.
+					successUrl: `${window.location.origin}/welcome`
+				}
+			});
+		} catch (e) {
+			checkoutError = e instanceof Error ? e.message : 'Could not open checkout.';
+		} finally {
+			// The overlay takes over the screen; release the button shortly after.
+			setTimeout(() => {
+				if (checkoutBusy === t.id) checkoutBusy = '';
+			}, 2500);
+		}
+	}
+
+	// ---- Referral (existing feature, preserved) -------------------------------
 	let referralInput = $state('');
 	let referralBusy = $state(false);
 	let referralError = $state('');
@@ -18,7 +157,6 @@
 	/** @type {Record<string, unknown> | null} */
 	let attribution = $state(null);
 
-	const tier = $derived(currentTier());
 	const attributionLocked = $derived(Boolean(attribution?.locked_at));
 
 	onMount(() => {
@@ -85,7 +223,36 @@
 			access.
 		</p>
 
+		<div class="billing-toggle" role="group" aria-label="Billing cycle">
+			<button
+				type="button"
+				class="toggle-btn"
+				class:active={billingCycle === 'month'}
+				aria-pressed={billingCycle === 'month'}
+				onclick={() => (billingCycle = 'month')}
+			>
+				Monthly
+			</button>
+			<button
+				type="button"
+				class="toggle-btn"
+				class:active={billingCycle === 'year'}
+				aria-pressed={billingCycle === 'year'}
+				onclick={() => (billingCycle = 'year')}
+			>
+				Yearly
+			</button>
+		</div>
+
+		{#if pricesError}
+			<p class="site-error">Prices unavailable: {pricesError}</p>
+		{/if}
+		{#if checkoutError}
+			<p class="site-error">{checkoutError}</p>
+		{/if}
+
 		<div class="tiers">
+			<!-- Free tier: no checkout -->
 			<section class="tier" aria-labelledby="tier-free">
 				<h2 id="tier-free">Free</h2>
 				<p class="price">$0</p>
@@ -103,63 +270,61 @@
 				{/if}
 			</section>
 
-			<section class="tier" aria-labelledby="tier-maker">
-				<h2 id="tier-maker">Maker</h2>
-				<p class="price">$2.99</p>
-				<ul>
-					<li>Up to five concurrent projects</li>
-					<li>Delete a project to free a slot</li>
-					<li>Full gallery pattern data</li>
-					<li>Add gallery patterns to your projects</li>
-					<li>Same studio tools</li>
-				</ul>
+			<!-- Paid tiers: localized prices + Paddle Checkout -->
+			{#each tiers as t (t.id)}
+				<section
+					class="tier"
+					class:tier-featured={t.featured}
+					aria-labelledby={`tier-${t.id}`}
+				>
+					<h2 id={`tier-${t.id}`}>{t.name}</h2>
 
-				{#if auth.loading}
-					<p class="site-muted">Checking session…</p>
-				{:else if !auth.session}
-					<a class="site-btn site-btn-primary" href={resolve('/login')}>Log in to upgrade</a>
-				{:else if tier === 'maker'}
-					<p class="status">Maker plan active</p>
-					<a class="site-btn" href={resolve('/studio/load')}>Open studio</a>
-				{:else if tier === 'lifetime'}
-					<p class="status">Included under Lifetime</p>
-				{:else}
-					<button type="button" class="site-btn site-btn-primary" disabled>
-						Checkout coming soon
-					</button>
-					<p class="fineprint">
-						Paid upgrades arrive with Flitt checkout. Dummy upgrades are disabled for now.
+					<p class="price">
+						{#if pricesLoading}
+							<span class="price-loading">Loading…</span>
+						{:else if priceLabelFor(t)}
+							{priceLabelFor(t)}
+							<span class="price-note">
+								{#if t.oneTime}
+									one-time
+								{:else if billingCycle === 'month'}
+									/month
+								{:else}
+									/year
+								{/if}
+							</span>
+						{:else}
+							<span class="price-loading">—</span>
+						{/if}
 					</p>
-				{/if}
-			</section>
 
-			<section class="tier tier-featured" aria-labelledby="tier-lifetime">
-				<h2 id="tier-lifetime">Lifetime</h2>
-				<p class="price">$9.99 <span class="price-note">one-time</span></p>
-				<ul>
-					<li>Up to twenty concurrent projects</li>
-					<li>Delete a project to free a slot</li>
-					<li>Full gallery pattern data</li>
-					<li>Add gallery patterns to your projects</li>
-					<li>Same studio tools</li>
-				</ul>
+					<ul>
+						{#each t.features as feature (feature)}
+							<li>{feature}</li>
+						{/each}
+					</ul>
 
-				{#if auth.loading}
-					<p class="site-muted">Checking session…</p>
-				{:else if !auth.session}
-					<a class="site-btn site-btn-primary" href={resolve('/login')}>Log in to upgrade</a>
-				{:else if tier === 'lifetime'}
-					<p class="status">Lifetime plan active</p>
-					<a class="site-btn" href={resolve('/studio/load')}>Open studio</a>
-				{:else}
-					<button type="button" class="site-btn site-btn-primary" disabled>
-						Checkout coming soon
-					</button>
-					<p class="fineprint">
-						Paid upgrades arrive with Flitt checkout. Dummy upgrades are disabled for now.
-					</p>
-				{/if}
-			</section>
+					{#if tier === t.id}
+						<p class="status">{t.name} plan active</p>
+						<a class="site-btn" href={resolve('/studio/load')}>Open studio</a>
+					{:else if t.id === 'maker' && tier === 'lifetime'}
+						<p class="status">Included under Lifetime</p>
+					{:else if auth.loading}
+						<p class="site-muted">Checking session…</p>
+					{:else if !auth.session}
+						<a class="site-btn site-btn-primary" href={resolve('/login')}>Log in to subscribe</a>
+					{:else}
+						<button
+							type="button"
+							class="site-btn site-btn-primary"
+							disabled={pricesLoading || checkoutBusy === t.id}
+							onclick={() => subscribe(t)}
+						>
+							{checkoutBusy === t.id ? 'Opening…' : 'Subscribe'}
+						</button>
+					{/if}
+				</section>
+			{/each}
 		</div>
 
 		{#if auth.session && !auth.loading}
@@ -212,7 +377,6 @@
 				{/if}
 			</section>
 		{/if}
-
 	</main>
 
 	<SiteFooter />
@@ -228,9 +392,36 @@
 	}
 
 	.lead {
-		margin: 0 0 40px;
+		margin: 0 0 24px;
 		color: var(--site-muted);
 		max-width: 36rem;
+	}
+
+	.billing-toggle {
+		display: inline-flex;
+		gap: 4px;
+		padding: 4px;
+		margin: 0 0 32px;
+		border: 1px solid var(--site-border);
+		background: var(--site-bg);
+	}
+
+	.toggle-btn {
+		appearance: none;
+		border: 0;
+		background: transparent;
+		color: var(--site-muted);
+		font-family: var(--site-font-mono);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		padding: 8px 18px;
+		cursor: pointer;
+	}
+
+	.toggle-btn.active {
+		background: var(--site-accent);
+		color: var(--site-bg);
 	}
 
 	.tiers {
@@ -266,6 +457,11 @@
 		font-weight: 700;
 		margin: 0 0 20px;
 		color: var(--site-text);
+	}
+
+	.price-loading {
+		color: var(--site-muted);
+		font-size: 1.25rem;
 	}
 
 	.price-note {

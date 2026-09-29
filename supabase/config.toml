@@ -1,4 +1,4 @@
-# PixelCount Studio Supabase project config (Edge Functions + local tooling)
+# Qsovio Supabase project config (Edge Functions + local tooling)
 
 [api]
 enabled = true
@@ -16,3 +16,7 @@ verify_jwt = true
 # Provider server-to-server callbacks do not send a Supabase JWT.
 # Authentication must be implemented via provider signature verification.
 verify_jwt = false
+
+[functions.cancel-subscription]
+# Called from the browser by a signed-in user; requires a valid Supabase JWT.
+verify_jwt = true

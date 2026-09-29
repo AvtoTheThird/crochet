@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>PixelCount Studio</title>
+	<title>Qsovio</title>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
