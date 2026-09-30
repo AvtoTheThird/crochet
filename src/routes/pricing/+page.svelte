@@ -12,7 +12,8 @@
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import { getPaddle } from '$lib/paddle/client.js';
 	import { getMyPaddleCustomerId } from '$lib/supabase/profile.js';
-	import { tiers, allPriceIds, priceIdFor } from '$lib/paddle/tiers.js';
+	import { tiers, priceIdFor } from '$lib/paddle/tiers.js';
+	import { fetchPriceMap } from '$lib/paddle/prices.js';
 	import '$lib/styles/site.css';
 
 	// ---- Paddle pricing state -------------------------------------------------
@@ -55,34 +56,9 @@
 			const paddle = await resolvePaddle();
 			if (!paddle) throw new Error('Paddle failed to initialize.');
 
-			// Country is detected server-side from request headers (see /api/geo).
-			// If unknown, we DO NOT pass a country and let Paddle.js auto-detect by IP.
-			try {
-				const res = await fetch('/api/geo');
-				if (res.ok) {
-					const data = await res.json();
-					country = typeof data?.country === 'string' ? data.country : null;
-				}
-			} catch {
-				country = null;
-			}
-
-			/** @type {{ items: { priceId: string; quantity: number }[]; address?: { countryCode: string } }} */
-			const request = {
-				items: allPriceIds().map((priceId) => ({ priceId, quantity: 1 }))
-			};
-			// Only attach an address when we have a real ISO country code.
-			if (country) {
-				request.address = { countryCode: country };
-			}
-
-			const result = await paddle.PricePreview(request);
-			const map = /** @type {Record<string, string>} */ ({});
-			for (const item of result.data.details.lineItems) {
-				// Display ONLY the string Paddle returns — no math, no reformatting.
-				map[item.price.id] = item.formattedTotals.subtotal;
-			}
-			priceMap = map;
+			const result = await fetchPriceMap(paddle);
+			country = result.country;
+			priceMap = result.priceMap;
 		} catch (e) {
 			pricesError = e instanceof Error ? e.message : 'Could not load prices.';
 		} finally {

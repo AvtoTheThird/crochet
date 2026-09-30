@@ -5,6 +5,9 @@
 	import { listGalleryMostLiked } from '$lib/supabase/gallery.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
+	import { getPaddle } from '$lib/paddle/client.js';
+	import { tiers, priceIdFor } from '$lib/paddle/tiers.js';
+	import { fetchPriceMap } from '$lib/paddle/prices.js';
 	import '$lib/styles/site.css';
 
 	const steps = [
@@ -71,6 +74,29 @@
 		}
 		carouselHalf = half;
 	}
+
+	/** Map of priceId -> Paddle's already-formatted total string. */
+	let priceMap = $state(/** @type {Record<string, string>} */ ({}));
+	let pricesLoading = $state(true);
+
+	/** @param {string} tierId */
+	function priceLabelFor(tierId) {
+		const t = tiers.find((x) => x.id === tierId);
+		if (!t) return '';
+		return priceMap[priceIdFor(t, 'month')] ?? '';
+	}
+
+	onMount(async () => {
+		try {
+			const paddle = await getPaddle();
+			if (!paddle) throw new Error('Paddle failed to initialize.');
+			priceMap = (await fetchPriceMap(paddle)).priceMap;
+		} catch (e) {
+			console.warn('landing prices:', e);
+		} finally {
+			pricesLoading = false;
+		}
+	});
 
 	onMount(async () => {
 		const openVideo = document.querySelector('.how-item.open video');
@@ -256,12 +282,28 @@
 			</li>
 			<li>
 				<strong>Maker</strong>
-				<span class="plan-price">$2.99</span>
+				<span class="plan-price">
+					{#if pricesLoading}
+						<span class="plan-price-loading">Loading…</span>
+					{:else if priceLabelFor('maker')}
+						{priceLabelFor('maker')} <em>/month</em>
+					{:else}
+						<span class="plan-price-loading">—</span>
+					{/if}
+				</span>
 				<p>Up to five concurrent projects, full gallery access, and Add to my projects.</p>
 			</li>
 			<li class="plan-featured">
 				<strong>Lifetime</strong>
-				<span class="plan-price">$9.99 <em>one-time</em></span>
+				<span class="plan-price">
+					{#if pricesLoading}
+						<span class="plan-price-loading">Loading…</span>
+					{:else if priceLabelFor('lifetime')}
+						{priceLabelFor('lifetime')} <em>one-time</em>
+					{:else}
+						<span class="plan-price-loading">—</span>
+					{/if}
+				</span>
 				<p>Pay once. Up to twenty concurrent projects and full gallery access.</p>
 			</li>
 		</ul>
@@ -608,6 +650,11 @@
 		font-size: 1.5rem;
 		font-weight: 700;
 		color: var(--site-text);
+	}
+
+	.plan-price-loading {
+		color: var(--site-muted);
+		font-size: 1rem;
 	}
 
 	.plan-price em {
