@@ -28,6 +28,12 @@
 			? `${item.likes_count ?? 0} ${(item.likes_count ?? 0) === 1 ? 'like' : 'likes'}`
 			: ''
 	);
+	/** @type {{ hex: string, yarn_label?: string, count?: number }[]} */
+	const palette = $derived(
+		Array.isArray(item?.palette)
+			? [...item.palette].sort((x, y) => (y.count ?? 0) - (x.count ?? 0))
+			: []
+	);
 
 	async function loadItem() {
 		const id = page.params.id;
@@ -141,6 +147,26 @@
 							: 'No description provided.'}
 					</p>
 
+					{#if palette.length}
+						<section class="colors" aria-label="Colors needed">
+							<h2>{palette.length} {palette.length === 1 ? 'color' : 'colors'}</h2>
+							<ul class="swatches">
+								{#each palette as color (color.hex)}
+									<li class="swatch">
+										<span class="swatch-chip" style:background={color.hex}></span>
+										<span class="swatch-name">{color.yarn_label || color.hex}</span>
+										<span class="swatch-hex">{color.hex}</span>
+										{#if color.count}
+											<span class="swatch-count">
+												{color.count} {color.count === 1 ? 'stitch' : 'stitches'}
+											</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</section>
+					{/if}
+
 					{#if hasFull}
 						<p class="access site-ok">Full pattern access</p>
 						{#if auth.session}
@@ -191,7 +217,7 @@
 
 	.detail-grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
 		gap: 32px;
 		align-items: start;
 	}
@@ -199,8 +225,8 @@
 	.detail-media img,
 	.detail-ph {
 		width: 100%;
-		min-height: min(70vh, 520px);
-		max-height: 70vh;
+		min-height: min(78vh, 680px);
+		max-height: 82vh;
 		object-fit: contain;
 		background: #101012;
 		border: 1px solid var(--site-border);
@@ -254,6 +280,61 @@
 		color: var(--site-muted);
 		max-width: 36rem;
 		white-space: pre-wrap;
+	}
+
+	.colors {
+		margin: 0 0 24px;
+	}
+
+	.colors h2 {
+		margin: 0 0 10px;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.swatches {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		max-height: 320px;
+		overflow-y: auto;
+	}
+
+	.swatch {
+		display: grid;
+		grid-template-columns: 22px minmax(0, 1fr) auto auto;
+		align-items: center;
+		gap: 10px;
+		font-size: 0.8rem;
+	}
+
+	.swatch-chip {
+		width: 22px;
+		height: 22px;
+		border: 1px solid var(--site-border);
+		display: block;
+	}
+
+	.swatch-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.swatch-hex,
+	.swatch-count {
+		font-family: var(--site-font-mono);
+		font-size: 0.7rem;
+		color: var(--site-muted);
+		text-transform: uppercase;
+	}
+
+	.swatch-count {
+		text-transform: none;
 	}
 
 	.access {

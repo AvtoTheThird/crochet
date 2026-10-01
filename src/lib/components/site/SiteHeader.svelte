@@ -15,6 +15,7 @@
 			.charAt(0)
 			.toUpperCase()
 	);
+	const firstName = $derived(auth.profile?.first_name || auth.profile?.username || '');
 </script>
 
 <header class="site-header">
@@ -33,6 +34,9 @@
 				{:else}
 					<span class="site-avatar site-avatar-fallback">{initial}</span>
 				{/if}
+				{#if firstName}
+					<span class="site-avatar-name">{firstName}</span>
+				{/if}
 			</a>
 		{:else}
 			<a href={resolve('/login')}>Log in</a>
@@ -44,8 +48,21 @@
 <style>
 	.site-avatar-link {
 		display: inline-flex;
+		flex-direction: column;
 		align-items: center;
+		gap: 3px;
 		line-height: 0;
+		text-decoration: none;
+	}
+	.site-avatar-name {
+		max-width: 80px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-family: var(--site-font-mono);
+		font-size: 0.6rem;
+		line-height: 1.2;
+		color: var(--site-muted);
 	}
 	.site-avatar {
 		width: 30px;

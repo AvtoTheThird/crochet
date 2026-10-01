@@ -8,6 +8,7 @@ import {
 } from "./viewport.js";
 import { updateCropUI } from "./crop.js";
 import { goStep } from "./steps.js";
+import { setHasImage } from "./ui.svelte.js";
 
 export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.workingCanvas = document.createElement("canvas");
@@ -52,6 +53,7 @@ export function loadFile(file) {
     dom.dropZone.style.display = "none";
     dom.wrapper.style.display = "block";
     dom.canvasArea.classList.add("has-image");
+    setHasImage(true);
     initWorkingCanvas(img, 0, 0, img.width, img.height);
     goStep(2);
   };

@@ -7,6 +7,7 @@
   import { syncStepFromUrl } from "$lib/studio/steps.js";
   import { auth } from "$lib/supabase/session.svelte.js";
   import { signOut } from "$lib/supabase/auth.js";
+  import { studioUi } from "$lib/studio/ui.svelte.js";
 
   const SIDEBAR_MIN = 200;
   const SIDEBAR_DEFAULT = 320;
@@ -80,7 +81,8 @@
   function positionHelpTip(tipEl) {
     const btn = tipEl.querySelector(".help-tip-btn");
     const bubble = tipEl.querySelector(".help-tip-bubble");
-    if (!(btn instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
+    if (!(btn instanceof HTMLElement) || !(bubble instanceof HTMLElement))
+      return;
     const r = btn.getBoundingClientRect();
     const gap = 8;
     const maxW = Math.min(220, window.innerWidth * 0.7);
@@ -94,7 +96,8 @@
     let left = r.left + r.width / 2;
     let top = r.top - gap;
     if (br.left < 8) left += 8 - br.left;
-    if (br.right > window.innerWidth - 8) left -= br.right - (window.innerWidth - 8);
+    if (br.right > window.innerWidth - 8)
+      left -= br.right - (window.innerWidth - 8);
     if (br.top < 8) {
       top = r.bottom + gap;
       bubble.style.transform = "translate(-50%, 0)";
@@ -103,12 +106,56 @@
     bubble.style.top = `${top}px`;
   }
 
+  /** @type {HTMLDialogElement | undefined} */
+  let exitDialog = $state();
+  let exitSaving = $state(false);
+  /** @type {(() => void) | null} */
+  let pendingLeave = null;
+
+  function goToProjects() {
+    // Full reload: studio canvas state lives in module singletons that client navigation keeps alive.
+    window.location.assign(resolve("/studio/load"));
+  }
+
+  function goToGallery() {
+    goto(resolve("/gallery"));
+  }
+
   async function logout() {
     await signOut();
     goto("/");
   }
 
+  /**
+   * Run `leave` right away, or ask to save first when the project has unsaved changes.
+   * @param {() => void} leave
+   */
+  function requestLeave(leave) {
+    const leaveAfterFlush = () => a.flushWalkProgress().finally(leave);
+    if (!a.hasUnsavedChanges()) {
+      leaveAfterFlush();
+      return;
+    }
+    pendingLeave = leaveAfterFlush;
+    exitDialog?.showModal();
+  }
+
+  function leaveWithoutSaving() {
+    exitDialog?.close();
+    pendingLeave?.();
+  }
+
+  async function saveAndLeave() {
+    exitSaving = true;
+    const saved = await a.saveProject();
+    exitSaving = false;
+    if (!saved) return;
+    exitDialog?.close();
+    pendingLeave?.();
+  }
+
   onMount(() => {
+    studioUi.hasImage = false;
     const cleanup = initStudio({
       mainCanvas,
       gridCanvas,
@@ -125,7 +172,15 @@
     });
     studioReady = true;
     syncStepFromUrl(page.params.step);
-    return cleanup;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") a.flushWalkProgress();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      a.flushWalkProgress();
+      cleanup();
+    };
   });
 
   afterNavigate(() => {
@@ -156,23 +211,80 @@
     <div class="sub">Pixel Art Run-Length Encoder</div>
   </div>
   <div class="header-actions">
-    {#if displayName}
-      <span class="user-chip">{displayName}</span>
+    <a
+      class="btn btn-secondary"
+      href={resolve("/gallery")}
+      onclick={(e) => {
+        e.preventDefault();
+        requestLeave(goToGallery);
+      }}>Gallery</a
+    >
+    {#if studioUi.hasImage}
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick={() => requestLeave(goToProjects)}
+      >
+        My Projects
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        id="save-project-btn"
+        onclick={() => a.saveProject()}
+        title="Save project (also auto-saves when advancing stages)"
+      >
+        💾 Save Project
+      </button>
     {/if}
     <button
       type="button"
       class="btn btn-secondary"
-      id="save-project-btn"
-      onclick={() => a.saveProject()}
-      title="Save project (also auto-saves when advancing stages)"
-    >
-      💾 Save Project
-    </button>
-    <button type="button" class="btn btn-secondary" onclick={logout}
-      >Log out</button
+      onclick={() => requestLeave(logout)}>Log out</button
     >
   </div>
 </header>
+
+<dialog
+  class="exit-dialog"
+  bind:this={exitDialog}
+  aria-labelledby="exit-dialog-title"
+  oncancel={(e) => {
+    if (exitSaving) e.preventDefault();
+  }}
+  onclick={(e) => {
+    if (e.target === exitDialog && !exitSaving) exitDialog.close();
+  }}
+>
+  <h2 id="exit-dialog-title">Save before leaving?</h2>
+  <p>This project has unsaved changes that will be lost if you leave now.</p>
+  <div class="exit-dialog-actions">
+    <button
+      type="button"
+      class="btn btn-primary"
+      disabled={exitSaving}
+      onclick={saveAndLeave}
+    >
+      {exitSaving ? "Saving…" : "Save & leave"}
+    </button>
+    <button
+      type="button"
+      class="btn btn-danger"
+      disabled={exitSaving}
+      onclick={leaveWithoutSaving}
+    >
+      Leave without saving
+    </button>
+    <button
+      type="button"
+      class="btn btn-secondary"
+      disabled={exitSaving}
+      onclick={() => exitDialog?.close()}
+    >
+      Cancel
+    </button>
+  </div>
+</dialog>
 
 <div id="walk-topbar" class="walk-topbar" aria-hidden="true">
   <div id="walk-topbar-progress" class="walk-topbar-progress"></div>
@@ -180,7 +292,7 @@
   <div id="walk-topbar-rowinfo" class="walk-topbar-rowinfo"></div>
 </div>
 
-<div class="step-bar">
+<div class="step-bar" class:projects-view={!studioUi.hasImage}>
   <div class="step active" id="step1">
     <span class="num">1</span> Load Image
   </div>
@@ -195,6 +307,7 @@
   id="main-layout"
   class:sidebar-collapsed={sidebarCollapsed}
   class:sidebar-resizing={resizingSidebar}
+  class:projects-view={!studioUi.hasImage}
   style:--sidebar-width="{sidebarWidth}px"
   data-step="1"
 >
@@ -493,9 +606,15 @@
   <div class="canvas-area" id="canvas-area" bind:this={canvasArea}>
     <div class="drop-zone" id="drop-zone" bind:this={dropZone}>
       <div class="icon">⬛</div>
-      <p>Drop your pixel art image here<br />or click Browse in the sidebar</p>
+      <p>Drop your pixel art image here<br />or click to browse</p>
       <div class="hint">PNG, GIF, BMP, JPEG supported</div>
     </div>
+
+    <section
+      id="project-cards"
+      class="project-cards"
+      aria-label="Your projects"
+    ></section>
 
     <div id="canvas-wrapper" bind:this={wrapper}>
       <canvas id="main-canvas" bind:this={mainCanvas}></canvas>

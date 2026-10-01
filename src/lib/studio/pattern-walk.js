@@ -296,10 +296,15 @@ export function refreshPatternWalkView() {
   drawPatternWalkOverlay();
 }
 
+function saveWalkProgress() {
+  import("./projects.js").then((m) => m.scheduleWalkProgressSave());
+}
+
 export function patternWalkNext() {
   if (state.patternWalk.currentIndex < state.patternWalk.steps.length - 1) {
     state.patternWalk.currentIndex++;
     refreshPatternWalkView();
+    saveWalkProgress();
   }
 }
 
@@ -307,6 +312,7 @@ export function patternWalkPrev() {
   if (state.patternWalk.currentIndex > 0) {
     state.patternWalk.currentIndex--;
     refreshPatternWalkView();
+    saveWalkProgress();
   }
 }
 

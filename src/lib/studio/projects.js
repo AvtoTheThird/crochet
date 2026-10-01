@@ -4,11 +4,11 @@
 import { state } from './state.js';
 import { dom } from './dom.js';
 import { setStartDirection } from './grid.js';
-import { runLengthEncode } from './count.js';
 import { buildWalkStepsFromCountResults } from './pattern-walk.js';
 import { updateBaseDisplayScale, resetZoomBakeCache, centerCanvasInView } from './viewport.js';
 import { getSupabase } from '$lib/supabase/client.js';
 import { auth } from '$lib/supabase/session.svelte.js';
+import { setHasImage } from './ui.svelte.js';
 
 const BUCKET = 'project-images';
 let saveChain = Promise.resolve();
@@ -248,9 +248,61 @@ async function buildDbRow(userId, projectId, name, imagePathValue, imageMeta) {
 		grid_opacity: gridOpacity,
 		current_row: currentWalkRow(),
 		completed_rows: state.completedRows || [],
-		studio_step: state.currentStep,
+		// Load (1) isn't a resumable stage once an image exists.
+		studio_step: Math.max(2, state.currentStep),
 		walk_index: state.patternWalk.currentIndex || 0
 	};
+}
+
+/** Snapshot of the saved fields at the last save/load; compared to detect unsaved changes. */
+let lastSavedSignature = null;
+
+function projectSignature() {
+	if (!state.workingCanvas) return null;
+	return JSON.stringify({
+		w: state.workingCanvas.width,
+		h: state.workingCanvas.height,
+		px: [readNum('px-w', 0), readNum('px-h', 0)],
+		tolerance: readInt('tolerance', 20),
+		opacity: readInt('grid-opacity', 35),
+		dir: state.startDirection,
+		step: Math.max(2, state.currentStep),
+		done: state.completedRows || [],
+		yarn: [...state.sourceToYarn.entries()].map(([src, id]) => [src, state.yarnColors.get(id)?.hex]),
+		counts: buildCountResultsJson()
+	});
+}
+
+function markProjectSaved() {
+	lastSavedSignature = projectSignature();
+}
+
+const WALK_SAVE_DELAY = 1200;
+let walkSaveTimer = null;
+
+/** Persist only the walk position (no image upload), debounced while stepping through stitches. */
+export function scheduleWalkProgressSave() {
+	if (!state.projectId || !auth.user) return;
+	clearTimeout(walkSaveTimer);
+	walkSaveTimer = setTimeout(flushWalkProgress, WALK_SAVE_DELAY);
+}
+
+export async function flushWalkProgress() {
+	if (walkSaveTimer === null) return;
+	clearTimeout(walkSaveTimer);
+	walkSaveTimer = null;
+	if (!state.projectId) return;
+	const { error } = await getSupabase()
+		.from('projects')
+		.update({ walk_index: state.patternWalk.currentIndex || 0, current_row: currentWalkRow() })
+		.eq('id', state.projectId);
+	if (error) console.warn('Walk progress save failed:', error.message);
+}
+
+export function hasUnsavedChanges() {
+	if (!state.workingCanvas) return false;
+	if (!state.projectId) return true;
+	return projectSignature() !== lastSavedSignature;
 }
 
 /**
@@ -260,6 +312,7 @@ export function persistProject(options = {}) {
 	if (!state.workingCanvas) return Promise.resolve(null);
 
 	const run = async () => {
+		const signature = projectSignature();
 		const userId = requireUserId();
 		let name = state.projectName || defaultProjectName();
 		let id = state.projectId;
@@ -296,6 +349,7 @@ export function persistProject(options = {}) {
 
 		state.projectId = id;
 		state.projectName = name;
+		lastSavedSignature = signature;
 
 		if (isNew) {
 			const { markFreeProjectUsed } = await import('$lib/supabase/entitlements.js');
@@ -322,18 +376,21 @@ export function autoSaveProject() {
 		});
 }
 
+/**
+ * @returns {Promise<boolean>} whether the project was saved
+ */
 export function saveProject() {
 	if (!state.workingCanvas) {
 		alert('No image loaded.');
-		return;
+		return Promise.resolve(false);
 	}
 	if (!auth.user) {
 		alert('You must be logged in to save.');
-		return;
+		return Promise.resolve(false);
 	}
-	persistProject({ promptName: !state.projectId })
+	return persistProject({ promptName: !state.projectId })
 		.then((record) => {
-			if (!record) return;
+			if (!record) return false;
 			const btn = document.getElementById('save-project-btn');
 			if (btn) {
 				const orig = btn.textContent;
@@ -343,10 +400,11 @@ export function saveProject() {
 				}, 1600);
 			}
 			renderProjectList();
+			return true;
 		})
 		.catch((e) => {
-			if (e?.code === 'PROJECT_LIMIT') return;
-			alert('Save failed: ' + (e.message || e));
+			if (e?.code !== 'PROJECT_LIMIT') alert('Save failed: ' + (e.message || e));
+			return false;
 		});
 }
 
@@ -452,28 +510,31 @@ function restoreFromSupabase(row, imageBlob) {
 			const { invalidateColorPreviewCache } = await import('./color-correction.js');
 			invalidateColorPreviewCache();
 
-			if (state.countGrid.length && state.countMetrics) {
-				if (!state.countResults.length) runLengthEncode();
-				const step = row.studio_step || 2;
-				// Walk is step 5 now (was 6). Old projects at Count (5) or Walk (6) both open walk.
-				if (step >= 5 || (row.walk_index > 0 && state.countResults.length)) {
-					state.patternWalk.steps = buildWalkStepsFromCountResults();
-					state.patternWalk.currentIndex = Math.min(
-						row.walk_index || 0,
-						Math.max(0, state.patternWalk.steps.length - 1)
-					);
-				}
+			// Projects with pattern data always reopen in Pattern Walk, whatever stage was saved.
+			const hasPattern = state.countResults.length > 0 && state.countGrid.length > 0;
+			const targetStep = hasPattern
+				? 5
+				: Math.min(4, Math.max(2, row.studio_step || 3));
+
+			state.patternWalk.steps = [];
+			state.patternWalk.currentIndex = 0;
+			if (hasPattern) {
+				state.patternWalk.steps = buildWalkStepsFromCountResults();
+				state.patternWalk.currentIndex = Math.min(
+					row.walk_index || 0,
+					Math.max(0, state.patternWalk.steps.length - 1)
+				);
 			}
 
 			if (dom.dropZone) dom.dropZone.style.display = 'none';
 			if (dom.wrapper) dom.wrapper.style.display = 'block';
 			if (dom.canvasArea) dom.canvasArea.classList.add('has-image');
+			setHasImage(true);
 			updateBaseDisplayScale();
 
-			let targetStep = row.studio_step || (state.countResults.length ? 5 : 3);
-			if (targetStep > 5) targetStep = 5; // legacy Walk was step 6
 			const { goStep } = await import('./steps.js');
 			goStep(targetStep, { replaceState: true });
+			markProjectSaved();
 			centerCanvasInView();
 			resolve();
 		};
@@ -485,13 +546,149 @@ function restoreFromSupabase(row, imageBlob) {
 	});
 }
 
+const STEP_LABELS = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Walk'];
+
+function normalizedStep(proj) {
+	return proj.studio_step === 6 ? 5 : proj.studio_step || 1;
+}
+
+function formatDate(value) {
+	try {
+		return new Date(value).toLocaleDateString();
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * @param {Record<string, any>} proj
+ * @returns {{ ratio: number, label: string }}
+ */
+function projectProgress(proj) {
+	// Walk steps are the count_results segments in order; walk_index is the segment in progress.
+	const segments = Array.isArray(proj.count_results)
+		? proj.count_results.flatMap((row) => row.segments || [])
+		: [];
+	if (segments.length) {
+		const walkIndex = Math.min(Math.max(0, proj.walk_index || 0), segments.length);
+		let total = 0;
+		let done = 0;
+		segments.forEach((seg, i) => {
+			const count = Number(seg.count) || 0;
+			total += count;
+			if (i < walkIndex) done += count;
+		});
+		if (total) {
+			const pct = Math.round((done / total) * 100);
+			return {
+				ratio: done / total,
+				label: `${done.toLocaleString()} / ${total.toLocaleString()} stitches · ${pct}%`
+			};
+		}
+	}
+	const step = normalizedStep(proj);
+	return { ratio: step / 5, label: `Step ${step} of 5 · ${STEP_LABELS[step] || 'Saved'}` };
+}
+
+/**
+ * @param {HTMLElement} root
+ */
+function wireProjectActions(root) {
+	root.querySelectorAll('.project-load-btn').forEach((btn) => {
+		btn.addEventListener('click', () => loadProjectById(btn.getAttribute('data-id')));
+	});
+	root.querySelectorAll('.project-publish-btn').forEach((btn) => {
+		btn.addEventListener('click', () =>
+			togglePublishProject(btn.getAttribute('data-id'), btn.getAttribute('data-published') === '1')
+		);
+	});
+	root.querySelectorAll('.project-delete-btn').forEach((btn) => {
+		btn.addEventListener('click', () => deleteProject(btn.getAttribute('data-id')));
+	});
+}
+
+/**
+ * @param {any[]} records
+ * @returns {Promise<Map<string, string>>}
+ */
+async function signThumbnails(records) {
+	const paths = records.map((r) => r.image_url).filter(Boolean);
+	const map = new Map();
+	if (!paths.length) return map;
+	const { data, error } = await getSupabase().storage.from(BUCKET).createSignedUrls(paths, 3600);
+	if (error) {
+		console.warn('thumbnail urls:', error.message);
+		return map;
+	}
+	for (const entry of data || []) {
+		if (entry.path && entry.signedUrl) map.set(entry.path, entry.signedUrl);
+	}
+	return map;
+}
+
+/**
+ * @param {HTMLElement} cards
+ * @param {any[]} records
+ * @param {string | null} quota
+ */
+async function renderProjectCards(cards, records, quota) {
+	cards.innerHTML = '';
+	if (!records.length) return;
+
+	const thumbs = await signThumbnails(records);
+
+	const head = document.createElement('div');
+	head.className = 'project-cards-head';
+	head.innerHTML =
+		'<span>Your projects</span>' + (quota ? `<span class="project-cards-quota">${escapeHtml(quota)}</span>` : '');
+	cards.appendChild(head);
+
+	const grid = document.createElement('div');
+	grid.className = 'project-cards-grid';
+	for (const proj of records) {
+		const published = !!proj.is_published;
+		const progress = projectProgress(proj);
+		const thumb = thumbs.get(proj.image_url);
+		const card = document.createElement('div');
+		card.className = 'project-card' + (proj.id === state.projectId ? ' is-current' : '');
+		card.innerHTML =
+			`<button type="button" class="project-card-open project-load-btn" data-id="${proj.id}" title="Open project">` +
+			'<div class="project-card-thumb">' +
+			(thumb
+				? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" />`
+				: '<span class="project-card-thumb-ph">No preview</span>') +
+			(published ? '<span class="project-card-badge">In gallery</span>' : '') +
+			'</div>' +
+			'<div class="project-card-body">' +
+			`<div class="project-card-name">${escapeHtml(proj.name)}</div>` +
+			`<div class="project-card-meta">${formatDate(proj.updated_at)} · ${STEP_LABELS[normalizedStep(proj)] || 'Saved'}</div>` +
+			`<div class="project-card-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress.ratio * 100)}">` +
+			`<div class="project-card-progress-fill" style="width:${(progress.ratio * 100).toFixed(1)}%"></div>` +
+			'</div>' +
+			`<div class="project-card-progress-label">${escapeHtml(progress.label)}</div>` +
+			'</div>' +
+			'</button>' +
+			'<div class="project-card-actions">' +
+			`<button type="button" class="btn btn-secondary project-publish-btn" data-id="${proj.id}" data-published="${published ? '1' : '0'}">${published ? 'Unpublish' : 'Publish'}</button>` +
+			`<button type="button" class="btn btn-danger project-delete-btn" data-id="${proj.id}" title="Delete project">✕</button>` +
+			'</div>';
+		grid.appendChild(card);
+	}
+	cards.appendChild(grid);
+	wireProjectActions(cards);
+}
+
 export async function renderProjectList() {
 	const container = document.getElementById('project-list');
-	if (!container) return;
+	const cards = document.getElementById('project-cards');
+	if (!container && !cards) return;
 
 	if (!auth.user) {
-		container.innerHTML =
-			'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">Log in to see saved projects.</p>';
+		if (container) {
+			container.innerHTML =
+				'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">Log in to see saved projects.</p>';
+		}
+		if (cards) cards.innerHTML = '';
 		return;
 	}
 
@@ -502,9 +699,18 @@ export async function renderProjectList() {
 		const supabase = getSupabase();
 		const { data: records, error } = await supabase
 			.from('projects')
-			.select('id, name, updated_at, studio_step, is_published, gallery_description')
+			.select(
+				'id, name, updated_at, studio_step, is_published, gallery_description, image_url, count_results, walk_index'
+			)
 			.order('updated_at', { ascending: false });
 		if (error) throw error;
+
+		if (cards) {
+			renderProjectCards(cards, records || [], quota).catch((e) =>
+				console.warn('renderProjectCards:', e)
+			);
+		}
+		if (!container) return;
 
 		container.innerHTML = '';
 		if (quota) {
@@ -523,22 +729,16 @@ export async function renderProjectList() {
 			return;
 		}
 
-		const stepLabels = ['', 'Load', 'Crop', 'Grid', 'Colors', 'Walk'];
 		for (const proj of records) {
-			let date = '';
-			try {
-				date = new Date(proj.updated_at).toLocaleDateString();
-			} catch {
-				/* ignore */
-			}
-			const stepN = proj.studio_step === 6 ? 5 : proj.studio_step;
+			const date = formatDate(proj.updated_at);
+			const stepN = normalizedStep(proj);
 			const published = !!proj.is_published;
 			const item = document.createElement('div');
 			item.className =
 				'project-list-item' + (proj.id === state.projectId ? ' is-current' : '');
 			item.innerHTML =
 				`<div class="project-list-name">${escapeHtml(proj.name)}</div>` +
-				`<div class="project-list-meta">${date} · ${stepLabels[stepN] || 'Saved'}${published ? ' · In gallery' : ''}</div>` +
+				`<div class="project-list-meta">${date} · ${STEP_LABELS[stepN] || 'Saved'}${published ? ' · In gallery' : ''}</div>` +
 				'<div class="project-list-actions">' +
 				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
 				`<button type="button" class="btn btn-secondary project-publish-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}" data-published="${published ? '1' : '0'}">${published ? 'Unpublish' : 'Publish'}</button>` +
@@ -546,24 +746,13 @@ export async function renderProjectList() {
 				'</div>';
 			container.appendChild(item);
 		}
-		container.querySelectorAll('.project-load-btn').forEach((btn) => {
-			btn.addEventListener('click', () => loadProjectById(btn.getAttribute('data-id')));
-		});
-		container.querySelectorAll('.project-publish-btn').forEach((btn) => {
-			btn.addEventListener('click', () =>
-				togglePublishProject(
-					btn.getAttribute('data-id'),
-					btn.getAttribute('data-published') === '1'
-				)
-			);
-		});
-		container.querySelectorAll('.project-delete-btn').forEach((btn) => {
-			btn.addEventListener('click', () => deleteProject(btn.getAttribute('data-id')));
-		});
+		wireProjectActions(container);
 	} catch (e) {
 		console.warn('renderProjectList:', e);
-		container.innerHTML =
-			'<p style="font-size:0.65rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
+		if (container) {
+			container.innerHTML =
+				'<p style="font-size:0.65rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
+		}
 	}
 }
 

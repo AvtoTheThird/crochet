@@ -29,7 +29,13 @@ import {
 	patternWalkPrev,
 	initPatternWalkHandlers
 } from './pattern-walk.js';
-import { saveProject, renderProjectList, autoSaveProject } from './projects.js';
+import {
+	saveProject,
+	renderProjectList,
+	autoSaveProject,
+	hasUnsavedChanges,
+	flushWalkProgress
+} from './projects.js';
 
 function goColorCorrection() {
 	enterColorCorrection();
@@ -111,5 +117,7 @@ export const studioActions = {
 	enterPatternWalk,
 	patternWalkNext,
 	patternWalkPrev,
-	saveProject
+	saveProject,
+	hasUnsavedChanges,
+	flushWalkProgress
 };

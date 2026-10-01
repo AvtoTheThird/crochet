@@ -52,6 +52,12 @@ header {
 
 header > div { flex: 1; }
 
+header > .header-actions {
+  flex: 0 1 auto;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
 header .header-actions {
   display: flex;
   align-items: center;
@@ -404,6 +410,7 @@ input[type=range] { padding: 0; cursor: pointer; accent-color: var(--accent); }
   transition: all 0.15s;
 }
 
+a.btn { display: inline-block; text-decoration: none; }
 .btn-primary { background: var(--accent); color: var(--bg); }
 .btn-primary:hover { background: #d4eb30; }
 .btn-secondary { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
@@ -909,3 +916,189 @@ body:has(#main-layout[data-step="5"].sidebar-collapsed) .walk-topbar {
   gap: 6px;
   margin-top: 2px;
 }
+
+.exit-dialog {
+  margin: auto;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Space Mono', monospace;
+}
+.exit-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+.exit-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+.exit-dialog p {
+  margin: 0 0 20px;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.exit-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.exit-dialog-actions .btn { flex: 1 1 auto; }
+
+/* Projects view: no image loaded yet. Steps and sidebar appear once an image is open. */
+.step-bar.projects-view,
+.main.projects-view .sidebar,
+.main.projects-view .sidebar-toggle,
+.main.projects-view #zoom-info {
+  display: none;
+}
+
+.main.projects-view .canvas-area {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 32px;
+  padding: 32px 24px;
+}
+
+.main.projects-view .drop-zone {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 36px 24px;
+  flex-shrink: 0;
+}
+
+.main:not(.projects-view) .project-cards { display: none; }
+
+.project-cards {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.project-cards-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.project-cards-quota {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
+
+.project-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.project-card:hover { border-color: var(--text-dim); transform: translateY(-2px); }
+.project-card.is-current { border-color: var(--accent); }
+
+.project-card-open {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.project-card-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.project-card-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  background: #101012;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+}
+.project-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
+}
+.project-card-thumb-ph {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.project-card-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 6px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 2px;
+}
+
+.project-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 8px;
+}
+.project-card-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-card-meta,
+.project-card-progress-label {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+.project-card-progress {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.project-card-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+.project-card-actions .btn {
+  font-size: 0.6rem;
+  padding: 5px 8px;
+}
+.project-card-actions .project-publish-btn { flex: 1; }
