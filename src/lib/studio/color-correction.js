@@ -3,8 +3,10 @@ import { dom, mainCtx, highlightCtx } from "./dom.js";
 import { rgbToHex, hexToRgb, colorsMatch, nextId } from "./utils.js";
 import { getGridMetrics, averageCellColor, snapColor, trimWorkingCanvasToGrid } from "./grid.js";
 import { renderWorkingCanvasDisplay, updateBaseDisplayScale, resetZoomBakeCache } from "./viewport.js";
+import { setPaletteSwatches } from "./ui.svelte.js";
+import { clearPaintHistory } from "./paint.js";
 
-function createYarn(r, g, b, name = "") {
+export function createYarn(r, g, b, name = "") {
   const hex = rgbToHex(r, g, b);
   const id = nextId();
   const yarn = { id, r, g, b, hex, name: name || hex };
@@ -25,7 +27,7 @@ function pruneOrphanYarns() {
   }
 }
 
-function countCellsForSource(sourceHex) {
+export function countCellsForSource(sourceHex) {
   let n = 0;
   for (const row of state.countGrid) {
     for (const cell of row) {
@@ -35,7 +37,7 @@ function countCellsForSource(sourceHex) {
   return n;
 }
 
-function syncCellFromYarn(cell) {
+export function syncCellFromYarn(cell) {
   const yarnId = state.sourceToYarn.get(cell.sourceHex);
   const yarn = state.yarnColors.get(yarnId);
   if (!yarn) return;
@@ -126,7 +128,7 @@ function renderColorPreviewOnly() {
   if (state.highlightedSourceHex) drawColorHighlight(state.highlightedSourceHex);
 }
 
-function scheduleColorPreviewRender() {
+export function scheduleColorPreviewRender() {
   if (colorPreviewRaf) return;
   colorPreviewRaf = requestAnimationFrame(() => {
     colorPreviewRaf = 0;
@@ -155,6 +157,7 @@ function previewSourceColor(sourceHex, hex, item) {
 }
 
 function initPaletteFromGrid() {
+  clearPaintHistory();
   state.yarnColors.clear();
   state.sourceToYarn.clear();
 
@@ -254,6 +257,7 @@ function mergeSourceIntoInternal(sourceHex, targetSourceHex) {
   if (!targetSourceHex || sourceHex === targetSourceHex) return false;
   if (!state.sourceToYarn.has(targetSourceHex)) return false;
   if (!state.sourceToYarn.has(sourceHex)) return false;
+  clearPaintHistory();
 
   for (const row of state.countGrid) {
     for (const cell of row) {
@@ -569,6 +573,14 @@ export function renderPaletteUI() {
     .filter((e) => e.yarn && e.count > 0)
     .sort((a, b) => b.count - a.count);
 
+  setPaletteSwatches(
+    entries.map(({ sourceHex, yarn, count }) => ({
+      sourceHex,
+      hex: yarn.hex,
+      name: yarn.name,
+      count,
+    })),
+  );
   dom.paletteCount.textContent = String(entries.length);
   dom.paletteList.innerHTML = "";
   ensureMergeMenuCloseListener();

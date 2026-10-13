@@ -460,7 +460,7 @@ a.btn { display: inline-block; text-decoration: none; }
 .canvas-area.has-image {
   padding: min(42vh, 320px) min(42vw, 320px);
   cursor: grab;
-  touch-action: pan-x pan-y;
+  touch-action: none;
 }
 .canvas-area.has-image.panning { cursor: grabbing; user-select: none; }
 
@@ -743,18 +743,6 @@ input[type=color].palette-picker {
 .tolerance-row { display: flex; align-items: center; gap: 8px; }
 .tolerance-row span { font-size: 0.75rem; color: var(--accent); width: 28px; text-align: right; }
 
-#zoom-info {
-  position: absolute;
-  bottom: 10px; right: 10px;
-  background: rgba(13,13,15,0.8);
-  border: 1px solid var(--border);
-  padding: 4px 8px;
-  font-size: 0.65rem;
-  color: var(--text-dim);
-  border-radius: 2px;
-  pointer-events: none;
-}
-
 /* Tablet / short viewports: ensure sidebar panel scrolls to bottom controls */
 @media (max-width: 1024px), (max-height: 700px) {
   .sidebar {
@@ -882,6 +870,117 @@ body:has(#main-layout[data-step="5"].sidebar-collapsed) .walk-topbar {
   display: block;
 }
 
+/* ===== Pixel painting (Color Correction step) ===== */
+.main { --paint-width: 240px; }
+
+.paint-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-right: none;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  padding: 10px 6px;
+  border-radius: 4px 0 0 4px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.06em;
+}
+.paint-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.paint-toggle[aria-expanded="true"] { right: var(--paint-width); }
+
+.paint-panel {
+  width: var(--paint-width);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.paint-tools { gap: 6px; }
+.paint-tools .btn {
+  padding: 8px 4px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.paint-brush {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.paint-brush-picker {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.paint-brush-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+.paint-brush-meta strong {
+  color: var(--text);
+  font-size: 0.75rem;
+}
+.paint-brush-meta span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paint-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 6px;
+}
+.paint-swatch {
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+.paint-swatch:hover { border-color: var(--text-dim); }
+.paint-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.main.paint-mode #canvas-wrapper {
+  cursor: crosshair;
+  touch-action: none;
+}
+.main.picker-mode #canvas-wrapper { cursor: copy; }
+
+@keyframes palette-item-new {
+  0%, 60% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+.palette-item.is-new { animation: palette-item-new 1.4s ease-out; }
+
 /* ===== Saved projects list ===== */
 .project-list-item {
   background: var(--surface2);
@@ -948,8 +1047,7 @@ body:has(#main-layout[data-step="5"].sidebar-collapsed) .walk-topbar {
 /* Projects view: no image loaded yet. Steps and sidebar appear once an image is open. */
 .step-bar.projects-view,
 .main.projects-view .sidebar,
-.main.projects-view .sidebar-toggle,
-.main.projects-view #zoom-info {
+.main.projects-view .sidebar-toggle {
   display: none;
 }
 

@@ -20,7 +20,6 @@
   let dropZone;
   let cropOverlay;
   let cropBox;
-  let zoomInfo;
   let canvasArea;
   let paletteList;
   let paletteCount;
@@ -51,6 +50,39 @@
 
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
+  }
+
+  const paintAvailable = $derived(studioUi.hasImage && studioUi.step === 4);
+  const paintActive = $derived(paintAvailable && studioUi.paintOpen);
+  const brushSwatch = $derived(
+    studioUi.palette.find((c) => c.sourceHex === studioUi.paintSource),
+  );
+  const brushHex = $derived(brushSwatch?.hex ?? studioUi.paintColor);
+
+  function togglePaintPanel() {
+    studioUi.paintOpen = !studioUi.paintOpen;
+  }
+
+  /** @param {Event & { currentTarget: HTMLInputElement }} e */
+  function pickBrushColor(e) {
+    studioUi.paintColor = e.currentTarget.value;
+    studioUi.paintSource = null;
+  }
+
+  /** @param {KeyboardEvent} e */
+  function onWindowKeydown(e) {
+    if (!paintActive || e.key.toLowerCase() !== "z") return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    const target = /** @type {HTMLElement | null} */ (e.target);
+    if (target?.closest("input, textarea, [contenteditable]")) return;
+    e.preventDefault();
+    a.undoPaint();
+  }
+
+  /** @param {{ sourceHex: string, hex: string }} swatch */
+  function selectBrushSwatch(swatch) {
+    studioUi.paintSource = swatch.sourceHex;
+    studioUi.paintColor = swatch.hex;
   }
 
   function startSidebarResize(e) {
@@ -165,7 +197,6 @@
       dropZone,
       cropOverlay,
       cropBox,
-      zoomInfo,
       canvasArea,
       paletteList,
       paletteCount,
@@ -188,6 +219,8 @@
     syncStepFromUrl(page.params.step);
   });
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 {#snippet helpTip(text)}
   <span class="help-tip">
@@ -232,7 +265,7 @@
         class="btn btn-secondary"
         id="save-project-btn"
         onclick={() => a.saveProject()}
-        title="Save project (also auto-saves when advancing stages)"
+        title="Save project"
       >
         💾 Save Project
       </button>
@@ -308,6 +341,8 @@
   class:sidebar-collapsed={sidebarCollapsed}
   class:sidebar-resizing={resizingSidebar}
   class:projects-view={!studioUi.hasImage}
+  class:paint-mode={paintActive}
+  class:picker-mode={paintActive && studioUi.paintTool === "picker"}
   style:--sidebar-width="{sidebarWidth}px"
   data-step="1"
 >
@@ -401,11 +436,6 @@
           min="1"
           placeholder="Height"
         />
-      </div>
-      <div class="field-label">Zoom</div>
-      <div class="tolerance-row">
-        <input type="range" id="grid-zoom" min="25" max="1600" value="100" />
-        <span id="grid-zoom-val">100%</span>
       </div>
       <button
         type="button"
@@ -634,8 +664,96 @@
         </div>
       </div>
     </div>
-    <div id="zoom-info" bind:this={zoomInfo}>No image</div>
   </div>
+
+  {#if paintAvailable}
+    <button
+      type="button"
+      class="paint-toggle"
+      aria-expanded={studioUi.paintOpen}
+      aria-controls="paint-panel"
+      title="Toggle pixel painting"
+      onclick={togglePaintPanel}
+    >
+      {studioUi.paintOpen ? "Hide paint ▶" : "◀ Paint pixels"}
+    </button>
+    {#if studioUi.paintOpen}
+      <aside class="paint-panel" id="paint-panel" aria-label="Pixel painting">
+        <div class="field-label">
+          Tool
+          {@render helpTip(
+            "Brush: click or drag on the artwork to paint cells. Pick color: click a cell to use its color, then switch back to the brush (Alt+click also picks while brushing). Middle-drag to pan.",
+          )}
+        </div>
+        <div class="row paint-tools" role="group" aria-label="Paint tool">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            class:active={studioUi.paintTool === "brush"}
+            aria-pressed={studioUi.paintTool === "brush"}
+            onclick={() => (studioUi.paintTool = "brush")}
+          >
+            Brush
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            class:active={studioUi.paintTool === "picker"}
+            aria-pressed={studioUi.paintTool === "picker"}
+            onclick={() => (studioUi.paintTool = "picker")}
+          >
+            Pick color
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            disabled={studioUi.undoCount === 0}
+            title="Undo last paint stroke (Ctrl+Z) · {studioUi.undoCount} of 5 available"
+            onclick={() => a.undoPaint()}
+          >
+            ↶ Undo
+          </button>
+        </div>
+        <div class="field-label">Brush color</div>
+        <label class="paint-brush">
+          <input
+            type="color"
+            class="paint-brush-picker"
+            value={brushHex}
+            oninput={pickBrushColor}
+          />
+          <span class="paint-brush-meta">
+            <strong>{brushHex}</strong>
+            <span>
+              {brushSwatch
+                ? brushSwatch.name !== brushSwatch.hex
+                  ? brushSwatch.name
+                  : "In palette"
+                : "New color"}
+            </span>
+          </span>
+        </label>
+        <hr class="separator" />
+        <div class="field-label">Used colors ({studioUi.palette.length})</div>
+        <div class="paint-swatches">
+          {#each studioUi.palette as swatch (swatch.sourceHex)}
+            <button
+              type="button"
+              class="paint-swatch"
+              class:selected={swatch.sourceHex === studioUi.paintSource}
+              style:background={swatch.hex}
+              title="{swatch.name} · {swatch.count} cell{swatch.count === 1
+                ? ''
+                : 's'}"
+              aria-label="Paint with {swatch.name}"
+              aria-pressed={swatch.sourceHex === studioUi.paintSource}
+              onclick={() => selectBrushSwatch(swatch)}
+            ></button>
+          {/each}
+        </div>
+      </aside>
+    {/if}
+  {/if}
 
   <button
     type="button"

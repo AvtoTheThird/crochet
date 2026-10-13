@@ -9,6 +9,7 @@ import {
 import { updateCropUI } from "./crop.js";
 import { goStep } from "./steps.js";
 import { setHasImage } from "./ui.svelte.js";
+import { clearPaintHistory } from "./paint.js";
 
 export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.workingCanvas = document.createElement("canvas");
@@ -28,6 +29,7 @@ export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.sourceToYarn.clear();
   state.highlightedSourceHex = null;
   state.completedRows = [];
+  clearPaintHistory();
   resetZoomBakeCache();
 
   updateBaseDisplayScale();

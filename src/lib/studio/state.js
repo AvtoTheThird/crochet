@@ -22,6 +22,8 @@ export const state = {
 	countResults: [],
 	countGrid: [],
 	countMetrics: null,
+	/** Bumped on manual cell edits (pixel painting) so unsaved changes are detected. */
+	gridRevision: 0,
 
 	/** @type {Map<string, {id:string,r:number,g:number,b:number,hex:string,name:string}>} */
 	yarnColors: new Map(),

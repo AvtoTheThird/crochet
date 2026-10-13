@@ -104,8 +104,6 @@ export async function enterPatternWalk() {
   state.patternWalk.currentIndex = 0;
   const { goStep } = await import("./steps.js");
   goStep(5);
-  const { autoSaveProject } = await import("./projects.js");
-  autoSaveProject();
 }
 
 function getCurrentWalkStep() {

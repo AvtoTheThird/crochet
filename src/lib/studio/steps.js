@@ -6,6 +6,7 @@ import { enableCrop, disableCrop } from './crop.js';
 import { renderPaletteUI, clearHighlight } from './color-correction.js';
 import { renderWorkingCanvasDisplay } from './viewport.js';
 import { onEnterPatternWalkStep } from './pattern-walk.js';
+import { setUiStep } from './ui.svelte.js';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { stepFromSlug, studioPathForStep } from './routes.js';
@@ -22,6 +23,7 @@ export function applyStep(n) {
 
 	if (n !== 4 && n !== 5) clearHighlight();
 	state.currentStep = n;
+	setUiStep(n);
 	const layout = document.getElementById('main-layout');
 	if (layout) layout.dataset.step = String(n);
 	for (let i = 1; i <= STEP_COUNT; i++) {

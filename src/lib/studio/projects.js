@@ -269,6 +269,7 @@ function projectSignature() {
 		step: Math.max(2, state.currentStep),
 		done: state.completedRows || [],
 		yarn: [...state.sourceToYarn.entries()].map(([src, id]) => [src, state.yarnColors.get(id)?.hex]),
+		rev: state.gridRevision,
 		counts: buildCountResultsJson()
 	});
 }
@@ -361,19 +362,6 @@ export function persistProject(options = {}) {
 
 	saveChain = saveChain.then(run, run);
 	return saveChain;
-}
-
-export function autoSaveProject() {
-	if (!auth.user) return Promise.resolve(null);
-	return persistProject({ silent: true })
-		.then((record) => {
-			if (record) renderProjectList();
-			return record;
-		})
-		.catch((e) => {
-			if (e?.code === 'PROJECT_LIMIT') return;
-			console.warn('Auto-save failed:', e);
-		});
 }
 
 /**
@@ -509,6 +497,8 @@ function restoreFromSupabase(row, imageBlob) {
 
 			const { invalidateColorPreviewCache } = await import('./color-correction.js');
 			invalidateColorPreviewCache();
+			const { clearPaintHistory } = await import('./paint.js');
+			clearPaintHistory();
 
 			// Projects with pattern data always reopen in Pattern Walk, whatever stage was saved.
 			const hasPattern = state.countResults.length > 0 && state.countGrid.length > 0;

@@ -9,7 +9,6 @@ export const dom = {
 	dropZone: null,
 	cropOverlay: null,
 	cropBox: null,
-	zoomInfo: null,
 	canvasArea: null,
 	paletteList: null,
 	paletteCount: null

@@ -9,7 +9,6 @@ import {
 	setStartDirection
 } from './grid.js';
 import {
-	setGridZoom,
 	resetGridZoom,
 	renderWorkingCanvasDisplay,
 	updateBaseDisplayScale
@@ -32,15 +31,14 @@ import {
 import {
 	saveProject,
 	renderProjectList,
-	autoSaveProject,
 	hasUnsavedChanges,
 	flushWalkProgress
 } from './projects.js';
+import { initPaintHandlers, undoPaint } from './paint.js';
 
 function goColorCorrection() {
 	enterColorCorrection();
 	goStep(4);
-	autoSaveProject();
 }
 
 function initGridHandlers() {
@@ -48,10 +46,6 @@ function initGridHandlers() {
 		const val = document.getElementById('grid-opacity-val');
 		if (val) val.textContent = this.value;
 		drawGrid();
-	});
-
-	document.getElementById('grid-zoom')?.addEventListener('input', function () {
-		setGridZoom(this.value);
 	});
 
 	document.getElementById('tolerance')?.addEventListener('input', function () {
@@ -85,6 +79,7 @@ export function initStudio(refs) {
 	initCropHandlers();
 	initGridHandlers();
 	initPatternWalkHandlers();
+	const cleanupPaint = initPaintHandlers();
 	renderProjectList();
 
 	const onResize = () => {
@@ -97,6 +92,7 @@ export function initStudio(refs) {
 
 	return () => {
 		window.removeEventListener('resize', onResize);
+		cleanupPaint();
 	};
 }
 
@@ -119,5 +115,6 @@ export const studioActions = {
 	patternWalkPrev,
 	saveProject,
 	hasUnsavedChanges,
-	flushWalkProgress
+	flushWalkProgress,
+	undoPaint
 };

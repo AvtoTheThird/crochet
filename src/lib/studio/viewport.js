@@ -41,17 +41,6 @@ export function centerCanvasInView() {
   });
 }
 
-export function updateZoomUI() {
-  const zoomEl = document.getElementById("grid-zoom");
-  const zoomVal = document.getElementById("grid-zoom-val");
-  const pct = Math.round(state.zoomLevel * 100);
-  if (zoomEl) zoomEl.value = String(pct);
-  if (zoomVal) zoomVal.textContent = `${pct}%`;
-  if (dom.zoomInfo && state.workingCanvas) {
-    dom.zoomInfo.textContent = `${state.workingCanvas.width}×${state.workingCanvas.height}px · ${Math.round(state.displayScale * 100)}% · scroll zoom · drag pan`;
-  }
-}
-
 /** Visual (CSS) display size — correct during soft-zoom CSS stretch. */
 export function getDisplaySize() {
   const dw = dom.mainCanvas?.clientWidth || dom.mainCanvas?.width || 0;
@@ -118,7 +107,6 @@ function applyCssDisplaySize(dw, dh, anchor) {
     );
   }
 
-  updateZoomUI();
   import("./crop.js").then((m) => m.updateCropUI());
 }
 
@@ -179,7 +167,6 @@ async function bakeDisplay(dw, dh) {
     );
   }
 
-  updateZoomUI();
   const { updateCropUI } = await import("./crop.js");
   updateCropUI();
 
