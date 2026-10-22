@@ -10,6 +10,7 @@ import { updateCropUI } from "./crop.js";
 import { goStep } from "./steps.js";
 import { setHasImage } from "./ui.svelte.js";
 import { clearPaintHistory } from "./paint.js";
+import { showAlert } from "$lib/ui/dialogs.svelte.js";
 
 export function initWorkingCanvas(src, sx, sy, sw, sh) {
   state.workingCanvas = document.createElement("canvas");
@@ -41,7 +42,11 @@ export function initWorkingCanvas(src, sx, sy, sw, sh) {
 
 export function loadFile(file) {
   if (!file || !file.type.startsWith("image/")) {
-    alert("Please choose an image file (PNG, GIF, BMP, JPEG).");
+    showAlert({
+      title: "That isn’t a picture",
+      message: "Please choose an image file: PNG, GIF, BMP or JPEG.",
+      tone: "warning",
+    });
     return;
   }
   const url = URL.createObjectURL(file);
@@ -61,7 +66,11 @@ export function loadFile(file) {
   };
   img.onerror = () => {
     URL.revokeObjectURL(url);
-    alert("Could not load that image. Try another file.");
+    showAlert({
+      title: "Couldn’t open that picture",
+      message: "The file may be damaged or in an unusual format. Try another one.",
+      tone: "danger",
+    });
   };
   img.src = url;
 }

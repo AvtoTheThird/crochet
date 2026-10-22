@@ -13,7 +13,8 @@
 	<SiteHeader />
 
 	<main class="site-section welcome">
-		<h1>You're all set 🎉</h1>
+		<p class="site-eyebrow">thank you, maker!</p>
+		<h1>You're all set 🧶</h1>
 		<p class="lead">
 			Thanks for your purchase. Your payment was received and your receipt is on its way by email.
 		</p>
@@ -32,18 +33,25 @@
 </div>
 
 <style>
+	.welcome {
+		text-align: center;
+	}
+
 	.welcome h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: clamp(2rem, 5vw, 3rem);
-		letter-spacing: -0.03em;
-		margin: 0 0 12px;
+		font-size: clamp(2.25rem, 5vw, 3.25rem);
+		margin: 0 0 16px;
 	}
 
 	.lead {
-		margin: 0 0 12px;
+		margin: 0 auto 12px;
 		color: var(--site-text);
-		max-width: 40rem;
+		max-width: 36rem;
+		font-size: 1.15rem;
+	}
+
+	.welcome .note {
+		margin-left: auto;
+		margin-right: auto;
 	}
 
 	.note {
@@ -55,6 +63,7 @@
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: center;
 		gap: 12px;
 	}
 </style>

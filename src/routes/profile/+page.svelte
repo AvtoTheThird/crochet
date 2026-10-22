@@ -12,6 +12,7 @@
 		cancelMySubscription
 	} from '$lib/supabase/profile.js';
 	import { currentTier } from '$lib/supabase/entitlements.js';
+	import { showConfirm } from '$lib/ui/dialogs.svelte.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -154,9 +155,15 @@
 	async function unsubscribe() {
 		subMsg = '';
 		subErr = '';
-		if (!confirm('Cancel your subscription? You keep access until the end of the current billing period.')) {
-			return;
-		}
+		const ok = await showConfirm({
+			title: 'Cancel your subscription?',
+			message:
+				'You’ll keep all your plan features until the end of the current billing period. Your projects stay saved.',
+			tone: 'danger',
+			confirmLabel: 'Cancel subscription',
+			cancelLabel: 'Keep my plan'
+		});
+		if (!ok) return;
 		cancelBusy = true;
 		try {
 			await cancelMySubscription();
@@ -368,57 +375,57 @@
 
 <style>
 	.profile-main {
-		max-width: 560px;
+		width: 100%;
+		max-width: 600px;
 		margin: 0 auto;
-		padding: 48px 24px 64px;
+		padding: 48px 16px 64px;
 	}
 	h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: 2rem;
-		letter-spacing: -0.03em;
-		margin: 0 0 24px;
+		font-size: clamp(2.25rem, 5vw, 3rem);
+		margin: 0 0 28px;
 	}
 	.card {
 		border: 1px solid var(--site-border);
+		border-radius: var(--site-radius);
 		background: var(--site-surface);
-		padding: 20px;
+		box-shadow: var(--site-shadow);
+		padding: 24px;
 		margin-bottom: 20px;
 	}
 	h2 {
-		font-family: var(--site-font-mono);
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--site-muted);
+		font-size: 1.3rem;
 		margin: 0 0 16px;
 	}
 	.stack {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 14px;
+		align-items: flex-start;
 	}
 	label {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		gap: 6px;
+		align-self: stretch;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--site-text);
+	}
+	input[type='file'] {
+		font-family: var(--site-font-body);
+		font-size: 0.9rem;
 		color: var(--site-muted);
 	}
-	input[type='text'],
-	input[type='password'] {
-		appearance: none;
-		border: 1px solid var(--site-border);
-		background: var(--site-bg);
+	input[type='file']::file-selector-button {
+		margin-right: 12px;
+		padding: 8px 16px;
+		border: 2px solid var(--site-border-strong);
+		border-radius: 999px;
+		background: var(--site-surface-2);
 		color: var(--site-text);
-		padding: 10px 12px;
-		font-family: var(--site-font-mono);
-		font-size: 0.9rem;
-	}
-	input:focus {
-		outline: 1px solid var(--site-accent);
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
 	}
 	.avatar-row {
 		display: flex;
@@ -430,17 +437,17 @@
 		height: 88px;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 1px solid var(--site-border);
+		border: 3px solid var(--site-mustard);
 		flex-shrink: 0;
 	}
 	.avatar-fallback {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--site-bg);
+		background: var(--site-mustard-soft);
 		color: var(--site-text);
 		font-family: var(--site-font-display);
-		font-weight: 800;
+		font-weight: 700;
 		font-size: 2rem;
 	}
 	.avatar-controls {
@@ -462,24 +469,23 @@
 		margin: 0 0 16px;
 	}
 	.sub-meta dt {
-		font-size: 0.65rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		font-size: 0.85rem;
+		font-weight: 600;
 		color: var(--site-muted);
 		margin-bottom: 2px;
 	}
 	.sub-meta dd {
 		margin: 0;
-		font-family: var(--site-font-mono);
-		font-size: 0.9rem;
+		font-weight: 700;
+		text-transform: capitalize;
 	}
 	.site-btn.danger {
-		border-color: #c0392b;
-		color: #c0392b;
+		border-color: var(--site-warn);
+		color: var(--site-warn);
 		background: transparent;
 	}
 	.site-btn.danger:hover:not(:disabled) {
-		background: #c0392b;
+		background: var(--site-warn);
 		color: #fff;
 	}
 	.footer-actions {

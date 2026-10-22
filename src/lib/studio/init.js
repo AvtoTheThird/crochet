@@ -6,7 +6,10 @@ import {
 	drawGrid,
 	syncPixelCountFromCellSize,
 	syncCellSizeFromPixelCount,
-	setStartDirection
+	setStartDirection,
+	enforceLockedPixelSize,
+	togglePixelSizeLocked,
+	updatePixelSizeLockButton
 } from './grid.js';
 import {
 	resetGridZoom,
@@ -53,8 +56,11 @@ function initGridHandlers() {
 		if (val) val.textContent = this.value;
 	});
 
+	updatePixelSizeLockButton();
+
 	for (const id of ['px-w', 'px-h']) {
 		document.getElementById(id)?.addEventListener('input', () => {
+			enforceLockedPixelSize(id);
 			syncPixelCountFromCellSize();
 			drawGrid();
 		});
@@ -62,7 +68,7 @@ function initGridHandlers() {
 
 	for (const id of ['grid-cols-input', 'grid-rows-input']) {
 		document.getElementById(id)?.addEventListener('input', () => {
-			syncCellSizeFromPixelCount();
+			syncCellSizeFromPixelCount(id);
 			drawGrid();
 		});
 	}
@@ -102,6 +108,7 @@ export const studioActions = {
 	applyCrop,
 	drawGrid,
 	setStartDirection,
+	togglePixelSizeLock: togglePixelSizeLocked,
 	resetGridZoom,
 	goColorCorrection,
 	resetColorCorrections,

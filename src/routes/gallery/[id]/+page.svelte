@@ -9,6 +9,7 @@
 		addGalleryProjectToMine,
 		toggleGalleryLike
 	} from '$lib/supabase/gallery.js';
+	import { notify } from '$lib/ui/dialogs.svelte.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -19,8 +20,6 @@
 	let errorMsg = $state('');
 	let busy = $state(false);
 	let likeBusy = $state(false);
-	let okMsg = $state('');
-
 	const paid = $derived(isPaid());
 	const hasFull = $derived(!!item && (item.access === 'full' || paid));
 	const likesLabel = $derived(
@@ -68,11 +67,10 @@
 	async function addToMine() {
 		if (!item?.id) return;
 		errorMsg = '';
-		okMsg = '';
 		busy = true;
 		try {
 			await addGalleryProjectToMine(item.id);
-			okMsg = 'Added to your projects.';
+			notify('Added to your projects ♥');
 			await goto(resolve('/studio/load'));
 		} catch (e) {
 			if (e?.code === 'PROJECT_LIMIT' || e?.code === 'GALLERY_LOCKED' || e?.code === 'NOT_LOGGED_IN') {
@@ -105,7 +103,7 @@
 	<SiteHeader />
 
 	<main class="site-section detail">
-		<p class="back"><a href={resolve('/gallery')}>Back to gallery</a></p>
+		<p class="back"><a href={resolve('/gallery')}>← Back to gallery</a></p>
 
 		{#if loading}
 			<p class="site-muted">Loading…</p>
@@ -137,7 +135,7 @@
 							aria-pressed={!!item.liked_by_me}
 							onclick={toggleLike}
 						>
-							{likeBusy ? '…' : item.liked_by_me ? 'Liked' : 'Like'}
+							{likeBusy ? '…' : item.liked_by_me ? '♥ Liked' : '♡ Like'}
 						</button>
 						<span class="like-count">{likesLabel}</span>
 					</div>
@@ -196,9 +194,6 @@
 					{#if errorMsg}
 						<p class="site-error">{errorMsg}</p>
 					{/if}
-					{#if okMsg}
-						<p class="site-ok">{okMsg}</p>
-					{/if}
 				</div>
 			</div>
 		{/if}
@@ -210,26 +205,32 @@
 <style>
 	.back {
 		margin: 0 0 24px;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		font-size: 0.95rem;
 	}
 
 	.detail-grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-		gap: 32px;
+		grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+		gap: clamp(24px, 4vw, 48px);
 		align-items: start;
+	}
+
+	.detail-media {
+		padding: 14px 14px 18px;
+		background: #fff;
+		border-radius: 10px;
+		box-shadow: var(--site-shadow-lg);
+		transform: rotate(-0.6deg);
 	}
 
 	.detail-media img,
 	.detail-ph {
 		width: 100%;
-		min-height: min(78vh, 680px);
-		max-height: 82vh;
+		min-height: min(70vh, 620px);
+		max-height: 78vh;
 		object-fit: contain;
-		background: #101012;
-		border: 1px solid var(--site-border);
+		background: var(--site-surface-2);
+		border-radius: 6px;
 		image-rendering: pixelated;
 		display: block;
 	}
@@ -239,18 +240,14 @@
 	}
 
 	.detail-copy h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: clamp(1.75rem, 4vw, 2.5rem);
-		letter-spacing: -0.03em;
-		margin: 0 0 8px;
+		font-size: clamp(2rem, 4vw, 2.75rem);
+		margin: 0 0 6px;
 	}
 
 	.byline {
-		margin: 0 0 12px;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		margin: 0 0 16px;
+		font-family: var(--site-font-hand);
+		font-size: 1.4rem;
 		color: var(--site-muted);
 	}
 
@@ -263,15 +260,14 @@
 	}
 
 	.like-btn.liked {
-		background: var(--site-accent);
+		background: var(--site-accent-soft);
 		border-color: var(--site-accent);
-		color: #0c0c0e;
+		color: var(--site-accent);
 	}
 
 	.like-count {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		font-size: 0.9rem;
+		font-weight: 600;
 		color: var(--site-muted);
 	}
 
@@ -286,11 +282,16 @@
 		margin: 0 0 24px;
 	}
 
+	.colors {
+		padding: 18px;
+		border-radius: var(--site-radius);
+		background: var(--site-surface);
+		border: 2px dashed var(--site-border);
+	}
+
 	.colors h2 {
-		margin: 0 0 10px;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		margin: 0 0 12px;
+		font-size: 1.15rem;
 	}
 
 	.swatches {
@@ -299,23 +300,25 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 8px;
 		max-height: 320px;
 		overflow-y: auto;
 	}
 
 	.swatch {
 		display: grid;
-		grid-template-columns: 22px minmax(0, 1fr) auto auto;
+		grid-template-columns: 26px minmax(0, 1fr) auto auto;
 		align-items: center;
 		gap: 10px;
-		font-size: 0.8rem;
+		font-size: 0.95rem;
+		font-weight: 600;
 	}
 
 	.swatch-chip {
-		width: 22px;
-		height: 22px;
-		border: 1px solid var(--site-border);
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 		display: block;
 	}
 
@@ -327,19 +330,18 @@
 
 	.swatch-hex,
 	.swatch-count {
-		font-family: var(--site-font-mono);
-		font-size: 0.7rem;
+		font-size: 0.8rem;
+		font-weight: 600;
 		color: var(--site-muted);
-		text-transform: uppercase;
 	}
 
-	.swatch-count {
-		text-transform: none;
+	.swatch-hex {
+		text-transform: uppercase;
 	}
 
 	.access {
 		margin: 0 0 16px;
-		font-size: 0.85rem;
+		font-size: 0.95rem;
 		color: var(--site-muted);
 		max-width: 28rem;
 	}
@@ -352,6 +354,13 @@
 	@media (max-width: 800px) {
 		.detail-grid {
 			grid-template-columns: 1fr;
+		}
+		.detail-media {
+			transform: none;
+		}
+		.detail-media img,
+		.detail-ph {
+			min-height: 0;
 		}
 	}
 </style>

@@ -53,8 +53,10 @@
 		min-height: 100vh;
 		display: grid;
 		place-items: center;
-		background: #0d0d0f;
-		color: #e8e8f0;
-		font-family: system-ui, sans-serif;
+		background: #fbf6ef;
+		color: #7f6c62;
+		font-family: 'Nunito', system-ui, sans-serif;
+		font-size: 1.1rem;
+		font-weight: 600;
 	}
 </style>

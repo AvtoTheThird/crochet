@@ -2,8 +2,8 @@
  * Public gallery: list/preview, publish from studio, clone into own projects.
  */
 import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
+import { offerNavigation } from '$lib/ui/dialogs.svelte.js';
 import { getSupabase } from './client.js';
 import { auth } from './session.svelte.js';
 import {
@@ -13,6 +13,30 @@ import {
 } from './entitlements.js';
 
 const BUCKET = 'project-images';
+
+/** @param {string} message */
+function offerLogin(message) {
+	if (!browser) return Promise.resolve();
+	return offerNavigation(
+		{ title: 'Please log in', message, confirmLabel: 'Log in', cancelLabel: 'Not now' },
+		resolve('/login')
+	);
+}
+
+function offerUpgradeForGallery() {
+	if (!browser) return Promise.resolve();
+	return offerNavigation(
+		{
+			title: 'This pattern is for members',
+			message:
+				'Anyone can preview gallery patterns. A paid plan unlocks the full stitch counts so you can add them to your projects.',
+			tone: 'warning',
+			confirmLabel: 'See plans',
+			cancelLabel: 'Not now'
+		},
+		resolve('/pricing')
+	);
+}
 
 /**
  * @param {string} path
@@ -93,7 +117,7 @@ export async function getGalleryItem(projectId) {
  */
 export async function toggleGalleryLike(projectId) {
 	if (!auth.user?.id) {
-		if (browser) await goto(resolve('/login'));
+		await offerLogin('Log in to like patterns and keep track of your favorites.');
 		throw Object.assign(new Error('Log in to like gallery projects.'), { code: 'NOT_LOGGED_IN' });
 	}
 
@@ -103,7 +127,7 @@ export async function toggleGalleryLike(projectId) {
 	});
 	if (error) {
 		if (error.message?.includes('NOT_LOGGED_IN')) {
-			if (browser) await goto(resolve('/login'));
+			await offerLogin('Your session has ended. Log in again to like patterns.');
 			throw Object.assign(new Error('Log in to like gallery projects.'), { code: 'NOT_LOGGED_IN' });
 		}
 		throw error;
@@ -115,25 +139,35 @@ export async function toggleGalleryLike(projectId) {
 }
 
 /**
- * Publish (or update description of) an owned project in the gallery.
+ * Publish (or update name/description of) an owned project in the gallery.
  * @param {string} projectId
- * @param {string} description
+ * @param {{ name?: string, description?: string } | string} details
+ *   An object with the gallery name (max 32 characters) and description,
+ *   or a plain description string for backwards compatibility.
  */
-export async function publishProjectToGallery(projectId, description) {
+export async function publishProjectToGallery(projectId, details) {
 	const userId = auth.user?.id;
 	if (!userId) throw new Error('Log in to publish.');
+
+	const { name, description } =
+		typeof details === 'string' ? { name: undefined, description: details } : details || {};
+	const trimmedName = (name || '').trim().slice(0, 32);
+	if (name !== undefined && !trimmedName) {
+		throw new Error('Give your pattern a name to publish.');
+	}
 
 	const supabase = getSupabase();
 	const { data, error } = await supabase
 		.from('projects')
 		.update({
 			is_published: true,
+			...(name !== undefined ? { name: trimmedName } : {}),
 			gallery_description: (description || '').trim(),
 			published_at: new Date().toISOString()
 		})
 		.eq('id', projectId)
 		.eq('user_id', userId)
-		.select('id, is_published, gallery_description, published_at')
+		.select('id, name, is_published, gallery_description, published_at')
 		.single();
 	if (error) throw error;
 	return data;
@@ -169,7 +203,7 @@ export async function unpublishProjectFromGallery(projectId) {
 export async function addGalleryProjectToMine(galleryProjectId) {
 	const userId = auth.user?.id;
 	if (!userId) {
-		if (browser) await goto(resolve('/login'));
+		await offerLogin('Log in to add gallery patterns to your projects.');
 		throw Object.assign(new Error('Log in to add gallery projects.'), { code: 'NOT_LOGGED_IN' });
 	}
 
@@ -178,14 +212,14 @@ export async function addGalleryProjectToMine(galleryProjectId) {
 
 	const isOwner = item.user_id === userId;
 	if (!isOwner && item.access !== 'full' && !isPaid()) {
-		if (browser) await goto(resolve('/pricing'));
+		await offerUpgradeForGallery();
 		throw Object.assign(new Error('A paid plan is required for full gallery access.'), {
 			code: 'GALLERY_LOCKED'
 		});
 	}
 
 	if (item.access !== 'full' && !isOwner) {
-		if (browser) await goto(resolve('/pricing'));
+		await offerUpgradeForGallery();
 		throw Object.assign(new Error('A paid plan is required for full gallery access.'), {
 			code: 'GALLERY_LOCKED'
 		});

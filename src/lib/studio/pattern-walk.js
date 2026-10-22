@@ -133,11 +133,14 @@ export function drawPatternWalkOverlay() {
   const dh = dom.highlightCanvas.height;
   const scaleX = dw / iw;
   const scaleY = dh / ih;
+  // Cells cover cols*pw × rows*ph; any leftover strip past the grid is not a row.
+  const contentW = Math.min(dw, Math.round(cols * pw * scaleX));
+  const contentH = Math.min(dh, Math.round(rows * ph * scaleY));
 
   const rowY0 = Math.round(step.imgRow * ph * scaleY);
   const rowY1 =
     step.imgRow === rows - 1
-      ? dh
+      ? contentH
       : Math.round((step.imgRow + 1) * ph * scaleY);
   const rowH = Math.max(1, rowY1 - rowY0);
 
@@ -150,9 +153,9 @@ export function drawPatternWalkOverlay() {
   if (opts.highlightRow) {
     highlightCtx.strokeStyle = "rgba(232, 255, 71, 0.95)";
     highlightCtx.lineWidth = 3;
-    highlightCtx.strokeRect(1.5, rowY0 + 1.5, dw - 3, rowH - 3);
+    highlightCtx.strokeRect(1.5, rowY0 + 1.5, contentW - 3, rowH - 3);
     highlightCtx.fillStyle = "rgba(232, 255, 71, 0.08)";
-    highlightCtx.fillRect(0, rowY0, dw, rowH);
+    highlightCtx.fillRect(0, rowY0, contentW, rowH);
   }
 
   if (opts.enlargeSegment) {
@@ -164,11 +167,8 @@ export function drawPatternWalkOverlay() {
       const x0 = Math.round(col0 * pw * scaleX);
       const y0 = Math.round(step.imgRow * ph * scaleY);
       const x1 =
-        col1 >= cols - 1 ? dw : Math.round((col1 + 1) * pw * scaleX);
-      const y1 =
-        step.imgRow === rows - 1
-          ? dh
-          : Math.round((step.imgRow + 1) * ph * scaleY);
+        col1 >= cols - 1 ? contentW : Math.round((col1 + 1) * pw * scaleX);
+      const y1 = rowY1;
       const w = Math.max(1, x1 - x0);
       const h = Math.max(1, y1 - y0);
       const color = step.segment.color;
@@ -218,11 +218,8 @@ export function drawPatternWalkOverlay() {
         const x0 = Math.round(col * pw * scaleX);
         const y0 = Math.round(step.imgRow * ph * scaleY);
         const x1 =
-          col === cols - 1 ? dw : Math.round((col + 1) * pw * scaleX);
-        const y1 =
-          step.imgRow === rows - 1
-            ? dh
-            : Math.round((step.imgRow + 1) * ph * scaleY);
+          col === cols - 1 ? contentW : Math.round((col + 1) * pw * scaleX);
+        const y1 = rowY1;
         highlightCtx.fillRect(
           x0,
           y0,

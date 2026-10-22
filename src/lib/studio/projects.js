@@ -3,12 +3,19 @@
  */
 import { state } from './state.js';
 import { dom } from './dom.js';
-import { setStartDirection } from './grid.js';
+import { setStartDirection, setPixelSizeLocked } from './grid.js';
 import { buildWalkStepsFromCountResults } from './pattern-walk.js';
 import { updateBaseDisplayScale, resetZoomBakeCache, centerCanvasInView } from './viewport.js';
 import { getSupabase } from '$lib/supabase/client.js';
 import { auth } from '$lib/supabase/session.svelte.js';
 import { setHasImage } from './ui.svelte.js';
+import {
+	showAlert,
+	showConfirm,
+	showPrompt,
+	notify,
+	errorMessage
+} from '$lib/ui/dialogs.svelte.js';
 
 const BUCKET = 'project-images';
 let saveChain = Promise.resolve();
@@ -219,6 +226,30 @@ function rebuildCountGridFromResults(countResults, metrics) {
 	return grid;
 }
 
+/**
+ * Crop the working canvas to exactly cols×pw by rows×ph so no leftover strip
+ * sits below/right of the last cells.
+ * @param {{ cols: number, rows: number, pw: number, ph: number }} metrics
+ */
+function trimWorkingCanvasToMetrics(metrics) {
+	const src = state.workingCanvas;
+	if (!src) return;
+	const tw = Math.min(src.width, Math.max(1, Math.round(metrics.cols * metrics.pw)));
+	const th = Math.min(src.height, Math.max(1, Math.round(metrics.rows * metrics.ph)));
+	if (tw === src.width && th === src.height) return;
+
+	const next = document.createElement('canvas');
+	next.width = tw;
+	next.height = th;
+	const ctx = next.getContext('2d', { willReadFrequently: true });
+	if (!ctx) return;
+	ctx.imageSmoothingEnabled = false;
+	ctx.drawImage(src, 0, 0, tw, th, 0, 0, tw, th);
+	state.workingCanvas = next;
+	state.workingCtx = ctx;
+	state.cropRect = { x: 0, y: 0, w: tw, h: th };
+}
+
 function imagePath(userId, projectId) {
 	return `${userId}/${projectId}.png`;
 }
@@ -325,9 +356,16 @@ export function persistProject(options = {}) {
 		}
 
 		if (options.promptName) {
-			const prompted = prompt('Project name:', name);
+			const prompted = await showPrompt({
+				title: 'Name your project',
+				message: 'Pick something you’ll recognize later in your project list.',
+				label: 'Project name',
+				defaultValue: name,
+				maxLength: 80,
+				confirmLabel: 'Save project'
+			});
 			if (prompted === null) return null;
-			name = prompted.trim() || name;
+			name = prompted || name;
 		}
 
 		if (!id) id = crypto.randomUUID();
@@ -369,35 +407,49 @@ export function persistProject(options = {}) {
  */
 export function saveProject() {
 	if (!state.workingCanvas) {
-		alert('No image loaded.');
+		showAlert({
+			title: 'Nothing to save yet',
+			message: 'Load a picture first, then you can save it as a project.',
+			tone: 'warning'
+		});
 		return Promise.resolve(false);
 	}
 	if (!auth.user) {
-		alert('You must be logged in to save.');
+		showAlert({
+			title: 'Please log in',
+			message: 'You need to be logged in to save projects.',
+			tone: 'warning'
+		});
 		return Promise.resolve(false);
 	}
 	return persistProject({ promptName: !state.projectId })
 		.then((record) => {
 			if (!record) return false;
-			const btn = document.getElementById('save-project-btn');
-			if (btn) {
-				const orig = btn.textContent;
-				btn.textContent = '✓ Saved!';
-				setTimeout(() => {
-					btn.textContent = orig;
-				}, 1600);
-			}
+			notify(`“${state.projectName}” saved`);
 			renderProjectList();
 			return true;
 		})
 		.catch((e) => {
-			if (e?.code !== 'PROJECT_LIMIT') alert('Save failed: ' + (e.message || e));
+			if (e?.code !== 'PROJECT_LIMIT') {
+				showAlert({
+					title: 'Couldn’t save your project',
+					message: errorMessage(e),
+					tone: 'danger'
+				});
+			}
 			return false;
 		});
 }
 
 export async function deleteProject(id) {
-	if (!confirm('Delete this project?')) return;
+	const ok = await showConfirm({
+		title: 'Delete this project?',
+		message: 'The project and its picture will be removed for good. This can’t be undone.',
+		tone: 'danger',
+		confirmLabel: 'Delete project',
+		cancelLabel: 'Keep it'
+	});
+	if (!ok) return;
 	try {
 		const userId = requireUserId();
 		const supabase = getSupabase();
@@ -409,8 +461,9 @@ export async function deleteProject(id) {
 			state.projectName = null;
 		}
 		renderProjectList();
+		notify('Project deleted');
 	} catch (e) {
-		alert('Delete failed: ' + (e.message || e));
+		showAlert({ title: 'Couldn’t delete the project', message: errorMessage(e), tone: 'danger' });
 	}
 }
 
@@ -420,7 +473,11 @@ export async function loadProjectById(id) {
 		const { data: row, error } = await supabase.from('projects').select('*').eq('id', id).single();
 		if (error) throw error;
 		if (!row) {
-			alert('Project not found.');
+			showAlert({
+				title: 'Project not found',
+				message: 'It may have been deleted. Try refreshing your project list.',
+				tone: 'warning'
+			});
 			return;
 		}
 
@@ -429,7 +486,7 @@ export async function loadProjectById(id) {
 
 		await restoreFromSupabase(row, file);
 	} catch (e) {
-		alert('Load failed: ' + (e.message || e));
+		showAlert({ title: 'Couldn’t open the project', message: errorMessage(e), tone: 'danger' });
 	}
 }
 
@@ -466,6 +523,8 @@ function restoreFromSupabase(row, imageBlob) {
 
 			setVal('px-w', row.pixel_width);
 			setVal('px-h', row.pixel_height);
+			// A saved pattern with non-square pixels must reopen unlocked.
+			setPixelSizeLocked(Number(row.pixel_width) === Number(row.pixel_height));
 			const cols = Math.max(1, Math.floor(img.width / row.pixel_width));
 			const rows = Math.max(1, Math.floor(img.height / row.pixel_height));
 			setVal('grid-cols-input', cols);
@@ -485,6 +544,7 @@ function restoreFromSupabase(row, imageBlob) {
 				cols,
 				rows
 			};
+			trimWorkingCanvasToMetrics(state.countMetrics);
 
 			applyPaletteToMaps(row.palette);
 			state.countResults = Array.isArray(row.count_results) ? row.count_results : [];
@@ -676,7 +736,7 @@ export async function renderProjectList() {
 	if (!auth.user) {
 		if (container) {
 			container.innerHTML =
-				'<p style="font-size:0.65rem;color:var(--text-dim);padding:4px 0">Log in to see saved projects.</p>';
+				'<p style="font-size:0.8rem;color:var(--text-dim);padding:4px 0">Log in to see saved projects.</p>';
 		}
 		if (cards) cards.innerHTML = '';
 		return;
@@ -706,14 +766,14 @@ export async function renderProjectList() {
 		if (quota) {
 			const q = document.createElement('p');
 			q.className = 'project-quota';
-			q.style.cssText = 'font-size:0.62rem;color:var(--text-dim);padding:0 0 4px;margin:0';
+			q.style.cssText = 'font-size:0.75rem;color:var(--text-dim);padding:0 0 4px;margin:0';
 			q.textContent = quota;
 			container.appendChild(q);
 		}
 
 		if (!records?.length) {
 			const empty = document.createElement('p');
-			empty.style.cssText = 'font-size:0.65rem;color:var(--text-dim);padding:4px 0;margin:0';
+			empty.style.cssText = 'font-size:0.8rem;color:var(--text-dim);padding:4px 0;margin:0';
 			empty.textContent = 'No saved projects yet.';
 			container.appendChild(empty);
 			return;
@@ -730,9 +790,9 @@ export async function renderProjectList() {
 				`<div class="project-list-name">${escapeHtml(proj.name)}</div>` +
 				`<div class="project-list-meta">${date} · ${STEP_LABELS[stepN] || 'Saved'}${published ? ' · In gallery' : ''}</div>` +
 				'<div class="project-list-actions">' +
-				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.62rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
-				`<button type="button" class="btn btn-secondary project-publish-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}" data-published="${published ? '1' : '0'}">${published ? 'Unpublish' : 'Publish'}</button>` +
-				`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.62rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +
+				`<button type="button" class="btn btn-primary project-load-btn" style="font-size:0.75rem;padding:5px 10px" data-id="${proj.id}">Load</button>` +
+				`<button type="button" class="btn btn-secondary project-publish-btn" style="font-size:0.75rem;padding:5px 8px" data-id="${proj.id}" data-published="${published ? '1' : '0'}">${published ? 'Unpublish' : 'Publish'}</button>` +
+				`<button type="button" class="btn btn-danger project-delete-btn" style="font-size:0.75rem;padding:5px 8px" data-id="${proj.id}">✕</button>` +
 				'</div>';
 			container.appendChild(item);
 		}
@@ -741,7 +801,7 @@ export async function renderProjectList() {
 		console.warn('renderProjectList:', e);
 		if (container) {
 			container.innerHTML =
-				'<p style="font-size:0.65rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
+				'<p style="font-size:0.8rem;color:var(--accent2);padding:4px 0">Could not load projects.</p>';
 		}
 	}
 }
@@ -753,8 +813,15 @@ async function togglePublishProject(id, isPublished) {
 			unpublishProjectFromGallery
 		} = await import('$lib/supabase/gallery.js');
 		if (isPublished) {
-			if (!confirm('Remove this project from the public gallery?')) return;
+			const ok = await showConfirm({
+				title: 'Remove from the gallery?',
+				message: 'Other makers won’t see it anymore. Your project stays safe in your list.',
+				confirmLabel: 'Remove',
+				cancelLabel: 'Keep it shared'
+			});
+			if (!ok) return;
 			await unpublishProjectFromGallery(id);
+			notify('Removed from the gallery');
 		} else {
 			// Refresh storage image (pixel art after colors) before publishing.
 			const saved = await persistProject({ silent: true });
@@ -762,19 +829,49 @@ async function togglePublishProject(id, isPublished) {
 			const supabase = getSupabase();
 			const { data: row } = await supabase
 				.from('projects')
-				.select('gallery_description')
+				.select('name, gallery_description')
 				.eq('id', projectId)
 				.maybeSingle();
-			const desc = prompt(
-				'Gallery description (shown publicly with the image):',
-				row?.gallery_description || ''
-			);
-			if (desc === null) return;
-			await publishProjectToGallery(projectId, desc);
+			const result = await showPrompt({
+				title: 'Share to the gallery',
+				message: 'Your picture, name and description will be visible to everyone.',
+				fields: [
+					{
+						key: 'name',
+						label: 'Name',
+						placeholder: 'e.g. Strawberry tote',
+						defaultValue: (row?.name || '').slice(0, 32),
+						maxLength: 32,
+						required: true
+					},
+					{
+						key: 'description',
+						label: 'Description',
+						placeholder: 'e.g. A little strawberry for a market tote',
+						defaultValue: row?.gallery_description || '',
+						multiline: true,
+						maxLength: 500
+					}
+				],
+				confirmLabel: 'Publish'
+			});
+			if (result === null || typeof result !== 'object') return;
+			const published = await publishProjectToGallery(projectId, {
+				name: result.name,
+				description: result.description
+			});
+			if (state.projectId === projectId && published?.name) {
+				state.projectName = published.name;
+			}
+			notify('Published to the gallery ♥');
 		}
 		renderProjectList();
 	} catch (e) {
-		alert((isPublished ? 'Unpublish' : 'Publish') + ' failed: ' + (e.message || e));
+		showAlert({
+			title: isPublished ? 'Couldn’t remove it from the gallery' : 'Couldn’t publish it',
+			message: errorMessage(e),
+			tone: 'danger'
+		});
 	}
 }
 

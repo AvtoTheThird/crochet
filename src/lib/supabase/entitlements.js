@@ -5,8 +5,8 @@
  * lifetime = 20 concurrent
  */
 import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
+import { offerNavigation, showAlert } from '$lib/ui/dialogs.svelte.js';
 import { getSupabase } from './client.js';
 import { auth, setAuthSession } from './session.svelte.js';
 
@@ -84,13 +84,43 @@ export async function canCreateProject() {
 }
 
 /**
- * Assert create allowed; otherwise redirect to pricing and throw.
+ * Assert create allowed; otherwise explain why (offering the pricing page) and throw.
  */
 export async function assertCanCreateProject() {
 	const result = await canCreateProject();
 	if (result.ok) return;
 	if (browser) {
-		await goto(resolve('/pricing'));
+		if (result.reason === 'not_logged_in') {
+			await offerNavigation(
+				{
+					title: 'Please log in',
+					message: 'Log in to create and save projects.',
+					confirmLabel: 'Log in',
+					cancelLabel: 'Not now'
+				},
+				resolve('/login')
+			);
+		} else if (result.reason === 'paid_full' && currentTier() === 'lifetime') {
+			await showAlert({
+				title: 'All your project slots are full',
+				message: `You have ${LIFETIME_PROJECT_LIMIT} projects, the most your plan allows. Delete one to make room for a new one.`,
+				tone: 'warning'
+			});
+		} else {
+			await offerNavigation(
+				{
+					title: 'Time for more projects?',
+					message:
+						result.reason === 'paid_full'
+							? `You have ${MAKER_PROJECT_LIMIT} projects, the most the Maker plan allows. Delete one, or go Lifetime for up to ${LIFETIME_PROJECT_LIMIT}.`
+							: 'The free plan includes one project, and you’ve already made yours. Upgrade to start another.',
+					tone: 'warning',
+					confirmLabel: 'See plans',
+					cancelLabel: 'Not now'
+				},
+				resolve('/pricing')
+			);
+		}
 	}
 	const err = new Error(
 		result.reason === 'paid_full'

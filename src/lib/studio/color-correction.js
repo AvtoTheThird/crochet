@@ -5,6 +5,7 @@ import { getGridMetrics, averageCellColor, snapColor, trimWorkingCanvasToGrid } 
 import { renderWorkingCanvasDisplay, updateBaseDisplayScale, resetZoomBakeCache } from "./viewport.js";
 import { setPaletteSwatches } from "./ui.svelte.js";
 import { clearPaintHistory } from "./paint.js";
+import { showAlert } from "$lib/ui/dialogs.svelte.js";
 
 export function createYarn(r, g, b, name = "") {
   const hex = rgbToHex(r, g, b);
@@ -360,11 +361,19 @@ export function collapsePaletteColors() {
   const target = parseInt(input?.value, 10);
   const count = parseInt(dom.paletteCount?.textContent || "0", 10);
   if (!Number.isFinite(target) || target < 2) {
-    alert("Enter a target of at least 2 colors.");
+    showAlert({
+      title: "Pick at least 2 colors",
+      message: "A tapestry needs two or more yarn colors to work with.",
+      tone: "warning",
+    });
     return;
   }
   if (target >= count) {
-    alert(`You already have ${count} colors. Choose a number below ${count}.`);
+    showAlert({
+      title: `You already have ${count} colors`,
+      message: `Choose a number below ${count} to merge similar shades together.`,
+      tone: "info",
+    });
     return;
   }
   collapsePaletteTo(target);

@@ -9,6 +9,8 @@ export const state = {
 	currentStep: 1,
 	showCountOverlay: true,
 	startDirection: 'ltr',
+	/** When true (default), pixel width and height are kept equal on the Grid step. */
+	pixelSizeLocked: true,
 
 	projectId: null,
 	projectName: null,

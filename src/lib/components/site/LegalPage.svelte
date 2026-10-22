@@ -25,29 +25,33 @@
 
 <style>
 	.legal-main {
-		max-width: 760px;
+		width: 100%;
+		max-width: 800px;
 		margin: 0 auto;
-		padding: 48px 24px 64px;
+		padding: 48px 16px 64px;
 	}
 	h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: 2rem;
-		letter-spacing: -0.03em;
+		font-size: clamp(2rem, 5vw, 2.75rem);
 		margin: 0 0 8px;
 	}
 	.legal-updated {
-		font-family: var(--site-font-mono);
-		font-size: 0.75rem;
+		font-size: 0.9rem;
 		color: var(--site-muted);
-		margin: 0 0 32px;
+		margin: 0 0 28px;
+	}
+	.legal-body {
+		padding: clamp(20px, 4vw, 40px);
+		border-radius: var(--site-radius);
+		background: var(--site-surface);
+		border: 1px solid var(--site-border);
+		box-shadow: var(--site-shadow);
 	}
 	.legal-body :global(h2) {
-		font-family: var(--site-font-display);
-		font-weight: 700;
-		font-size: 1.2rem;
-		letter-spacing: -0.02em;
+		font-size: 1.35rem;
 		margin: 32px 0 8px;
+	}
+	.legal-body :global(h2:first-child) {
+		margin-top: 0;
 	}
 	.legal-body :global(p),
 	.legal-body :global(li) {

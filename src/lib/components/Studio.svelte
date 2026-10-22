@@ -8,6 +8,7 @@
   import { auth } from "$lib/supabase/session.svelte.js";
   import { signOut } from "$lib/supabase/auth.js";
   import { studioUi } from "$lib/studio/ui.svelte.js";
+  import BrandMark from "$lib/components/site/BrandMark.svelte";
 
   const SIDEBAR_MIN = 200;
   const SIDEBAR_DEFAULT = 320;
@@ -239,9 +240,12 @@
 {/snippet}
 
 <header>
-  <div>
-    <h1><a href={resolve("/")}>Qsovio</a></h1>
-    <div class="sub">Pixel Art Run-Length Encoder</div>
+  <div class="brand">
+    <BrandMark size={34} />
+    <div>
+      <h1><a href={resolve("/")}>Qsovio</a></h1>
+      <div class="sub">tapestry pattern studio</div>
+    </div>
   </div>
   <div class="header-actions">
     <a
@@ -419,6 +423,17 @@
     <div class="panel" id="panel3">
       <div class="field-label">Pixel Width (px)</div>
       <input type="number" id="px-w" value="8" min="1" step="any" />
+      <button
+        type="button"
+        id="pixel-lock-btn"
+        class="btn btn-secondary pixel-lock-btn active"
+        aria-pressed="true"
+        title="Pixel width and height are locked together"
+        onclick={() => a.togglePixelSizeLock()}
+      >
+        <span class="pixel-lock-icon" aria-hidden="true">🔒</span>
+        <span class="pixel-lock-label">Locked</span>
+      </button>
       <div class="field-label">Pixel Height (px)</div>
       <input type="number" id="px-h" value="8" min="1" step="any" />
       <hr class="separator" />
@@ -635,9 +650,10 @@
 
   <div class="canvas-area" id="canvas-area" bind:this={canvasArea}>
     <div class="drop-zone" id="drop-zone" bind:this={dropZone}>
-      <div class="icon">⬛</div>
-      <p>Drop your pixel art image here<br />or click to browse</p>
-      <div class="hint">PNG, GIF, BMP, JPEG supported</div>
+      <div class="icon"><BrandMark size={64} /></div>
+      <p class="drop-title">Start a new pattern</p>
+      <p>Drop your pixel picture here, or click to browse</p>
+      <div class="hint">PNG works best · GIF, BMP and JPEG are fine too</div>
     </div>
 
     <section

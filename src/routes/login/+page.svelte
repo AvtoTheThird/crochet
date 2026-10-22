@@ -96,9 +96,11 @@
 	<SiteHeader />
 
 	<main class="login-main">
-		<h1>{mode === 'login' ? 'Log in' : 'Create account'}</h1>
+		<div class="login-card site-card">
+		<p class="site-eyebrow">{mode === 'login' ? 'welcome back!' : 'so glad you’re here'}</p>
+		<h1>{mode === 'login' ? 'Log in' : 'Create your account'}</h1>
 		<p class="site-muted intro">
-			Free accounts include one project. Upgrade anytime for more concurrent projects.
+			Free accounts include one project. Upgrade anytime for more projects on the go.
 		</p>
 
 		{#if auth.loading}
@@ -194,8 +196,9 @@
 		{/if}
 
 		<p class="site-muted aside">
-			<a href={resolve('/pricing')}>See pricing</a>
+			Curious about plans? <a href={resolve('/pricing')}>See pricing</a>
 		</p>
+		</div>
 	</main>
 
 	<SiteFooter />
@@ -203,15 +206,18 @@
 
 <style>
 	.login-main {
-		max-width: 420px;
+		width: 100%;
+		padding: clamp(32px, 6vw, 64px) 16px;
+		background-image: radial-gradient(#e7d8c5 1.2px, transparent 1.3px);
+		background-size: 18px 18px;
+	}
+	.login-card {
+		max-width: 460px;
 		margin: 0 auto;
-		padding: 48px 24px 64px;
+		padding: clamp(24px, 5vw, 40px);
 	}
 	h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: 2rem;
-		letter-spacing: -0.03em;
+		font-size: 2.1rem;
 		margin: 0 0 8px;
 	}
 	.intro {
@@ -219,61 +225,49 @@
 	}
 	.tabs {
 		display: flex;
-		gap: 0;
-		margin-bottom: 16px;
-		border: 1px solid var(--site-border);
+		gap: 4px;
+		padding: 5px;
+		margin-bottom: 20px;
+		border-radius: 999px;
+		background: var(--site-surface-2);
 	}
 	.tabs button {
 		appearance: none;
 		flex: 1;
 		border: none;
-		border-right: 1px solid var(--site-border);
-		background: var(--site-surface);
+		border-radius: 999px;
+		background: transparent;
 		color: var(--site-muted);
-		font-family: var(--site-font-mono);
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		padding: 10px 12px;
+		font-family: var(--site-font-body);
+		font-size: 0.95rem;
+		font-weight: 800;
+		padding: 9px 12px;
 		cursor: pointer;
 	}
-	.tabs button:last-child {
-		border-right: none;
-	}
 	.tabs button.active {
-		background: var(--site-bg);
-		color: var(--site-text);
-		outline: 1px solid var(--site-accent);
-		outline-offset: -1px;
+		background: var(--site-surface);
+		color: var(--site-accent);
+		box-shadow: var(--site-shadow);
 	}
 	.auth-form {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 14px;
+	}
+	.auth-form button[type='submit'] {
+		margin-top: 8px;
 	}
 	label {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--site-muted);
-	}
-	input {
-		appearance: none;
-		border: 1px solid var(--site-border);
-		background: var(--site-surface);
-		color: var(--site-text);
-		padding: 10px 12px;
-		font-family: var(--site-font-mono);
+		gap: 6px;
 		font-size: 0.9rem;
-	}
-	input:focus {
-		outline: 1px solid var(--site-accent);
+		font-weight: 700;
+		color: var(--site-text);
 	}
 	.aside {
-		margin-top: 28px;
-		font-size: 0.75rem;
+		margin: 24px 0 0;
+		font-size: 0.9rem;
+		text-align: center;
 	}
 </style>

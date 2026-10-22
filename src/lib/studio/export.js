@@ -76,7 +76,7 @@ function drawExportNumberOverlay(ctx, scale, offsetX = 0, offsetY = 0) {
       const cx = cellX0 + cellW / 2;
       const cy = cellY0 + cellH / 2;
       const fontSize = Math.max(7 * scale, Math.min(cellH * 0.55, cellW * 0.6, 16 * scale));
-      ctx.font = `bold ${fontSize}px 'Space Mono', monospace`;
+      ctx.font = `800 ${fontSize}px 'Nunito', system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const txt = String(seg.count);
@@ -98,16 +98,16 @@ function drawExportNumberOverlay(ctx, scale, offsetX = 0, offsetY = 0) {
 function drawExportPaletteFooter(ctx, stats, x, y, layout, scale) {
   const swatch = 10 * scale;
   const fontSize = 10 * scale;
-  ctx.fillStyle = '#16161a';
+  ctx.fillStyle = '#fbf6ef';
   ctx.fillRect(0, y, ctx.canvas.width, layout.height);
-  ctx.fillStyle = '#2a2a35';
+  ctx.fillStyle = '#eadfd1';
   ctx.fillRect(0, y, ctx.canvas.width, Math.max(1, Math.round(scale)));
-  ctx.font = `bold ${fontSize}px 'Space Mono', monospace`;
+  ctx.font = `800 ${fontSize}px 'Nunito', system-ui, sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#e8ff47';
+  ctx.fillStyle = '#c65d50';
   ctx.fillText(`Unique colors: ${stats.length}`, x + layout.padding, y + layout.padding + layout.lineHeight / 2);
-  ctx.font = `${fontSize}px 'Space Mono', monospace`;
+  ctx.font = `600 ${fontSize}px 'Nunito', system-ui, sans-serif`;
   for (let i = 0; i < stats.length; i++) {
     const entry = stats[i];
     const col = i % layout.entriesPerRow;
@@ -117,10 +117,10 @@ function drawExportPaletteFooter(ctx, stats, x, y, layout, scale) {
     const label = getColorLabel(entry.color);
     ctx.fillStyle = entry.color.hex;
     ctx.fillRect(entryX, entryY - swatch / 2, swatch, swatch);
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.strokeStyle = 'rgba(62,47,42,0.25)';
     ctx.lineWidth = Math.max(1, scale);
     ctx.strokeRect(entryX, entryY - swatch / 2, swatch, swatch);
-    ctx.fillStyle = '#e8e8f0';
+    ctx.fillStyle = '#3e2f2a';
     ctx.fillText(`${label} (${entry.color.hex}) x ${entry.count}`, entryX + swatch + 6 * scale, entryY);
   }
 }
@@ -138,7 +138,7 @@ export function exportPNG(scale) {
   canvas.height = Math.round(imageHeight + footerLayout.height);
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = '#0d0d0f';
+  ctx.fillStyle = '#fbf6ef';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const imageOffsetX = Math.round((canvas.width - imageWidth) / 2);
   drawExportCells(ctx, imageWidth, imageHeight, exportScale, imageOffsetX, 0);

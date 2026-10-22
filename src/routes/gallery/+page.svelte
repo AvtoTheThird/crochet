@@ -26,10 +26,11 @@
 	<SiteHeader />
 
 	<main class="site-section gallery">
-		<h1>Gallery</h1>
+		<p class="site-eyebrow">made by our community</p>
+		<h1 class="site-page-title">Gallery</h1>
 		<p class="lead">
-			Patterns shared by makers. Everyone can browse images and descriptions. Paid plans unlock
-			full pattern data and Add to my projects.
+			Patterns shared by fellow makers. Anyone can browse the pictures and descriptions; paid plans
+			unlock the full pattern so you can add it to your projects.
 		</p>
 
 		{#if loading}
@@ -52,7 +53,7 @@
 								<strong>{item.name}</strong>
 								<span>by {item.author_username}</span>
 								<span class="gallery-likes"
-									>{item.likes_count ?? 0}
+									>♥ {item.likes_count ?? 0}
 									{(item.likes_count ?? 0) === 1 ? 'like' : 'likes'}</span
 								>
 							</div>
@@ -67,18 +68,11 @@
 </div>
 
 <style>
-	.gallery h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: clamp(2rem, 5vw, 3rem);
-		letter-spacing: -0.03em;
-		margin: 0 0 12px;
-	}
-
 	.lead {
-		margin: 0 0 36px;
+		margin: 0 0 40px;
 		color: var(--site-muted);
 		max-width: 40rem;
+		font-size: 1.1rem;
 	}
 
 	.gallery-list {
@@ -86,26 +80,31 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 1px;
-		background: var(--site-border);
-		border: 1px solid var(--site-border);
-	}
-
-	.gallery-list li {
-		background: var(--site-bg);
+		grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+		gap: 28px 22px;
 	}
 
 	.gallery-item {
 		display: flex;
 		flex-direction: column;
-		color: inherit;
-		text-decoration: none;
 		height: 100%;
+		padding: 10px 10px 14px;
+		background: #fff;
+		border-radius: 8px;
+		box-shadow: var(--site-shadow);
+		color: inherit;
+		transition: transform 0.2s, box-shadow 0.2s;
 	}
-	.gallery-item:hover {
+	.gallery-list li:nth-child(3n + 1) .gallery-item {
+		transform: rotate(-1.2deg);
+	}
+	.gallery-list li:nth-child(3n + 2) .gallery-item {
+		transform: rotate(0.8deg);
+	}
+	.site-page .gallery-item:hover {
 		text-decoration: none;
-		background: var(--site-surface);
+		transform: rotate(0) translateY(-4px);
+		box-shadow: var(--site-shadow-lg);
 	}
 	.gallery-item:hover strong {
 		color: var(--site-accent);
@@ -118,28 +117,33 @@
 		height: auto;
 		aspect-ratio: 1;
 		object-fit: contain;
-		background: #101012;
+		background: var(--site-surface-2);
+		border-radius: 4px;
 		image-rendering: pixelated;
 	}
 
 	.gallery-meta {
-		padding: 12px;
+		padding: 12px 4px 0;
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		border-top: 1px solid var(--site-border);
+		gap: 2px;
 	}
 
 	.gallery-meta strong {
-		font-family: var(--site-font-display);
-		font-size: 1rem;
+		font-family: var(--site-font-hand);
+		font-size: 1.5rem;
+		line-height: 1.1;
 		color: var(--site-text);
+		overflow-wrap: anywhere;
 	}
 
 	.gallery-meta span {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		font-size: 0.85rem;
+		font-weight: 600;
 		color: var(--site-muted);
+	}
+
+	.gallery-meta .gallery-likes {
+		color: var(--site-accent);
 	}
 </style>

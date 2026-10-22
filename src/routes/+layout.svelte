@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { initAuth } from '$lib/supabase/session.svelte.js';
 	import { captureReferralFromUrl } from '$lib/referral/index.js';
+	import DialogHost from '$lib/ui/DialogHost.svelte';
 	import '$lib/styles/reset.css';
 
 	let { children } = $props();
@@ -21,3 +22,5 @@
 </svelte:head>
 
 {@render children()}
+
+<DialogHost />

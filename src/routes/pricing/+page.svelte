@@ -193,10 +193,11 @@
 	<SiteHeader />
 
 	<main class="site-section pricing">
-		<h1>Pricing</h1>
+		<p class="site-eyebrow">pick what suits you</p>
+		<h1 class="site-page-title">Pricing</h1>
 		<p class="lead">
-			Start free with one project. Upgrade when you need more concurrent projects or full gallery
-			access.
+			Start free with one project. Upgrade when you want more projects on the go or full access to
+			the gallery.
 		</p>
 
 		<div class="billing-toggle" role="group" aria-label="Billing cycle">
@@ -253,6 +254,9 @@
 					class:tier-featured={t.featured}
 					aria-labelledby={`tier-${t.id}`}
 				>
+					{#if t.featured}
+						<span class="tier-badge">best value</span>
+					{/if}
 					<h2 id={`tier-${t.id}`}>{t.name}</h2>
 
 					<p class="price">
@@ -325,7 +329,7 @@
 						</p>
 					{/if}
 					<div class="referral-row">
-						<label>
+						<label class="site-field">
 							Code
 							<input
 								type="text"
@@ -359,77 +363,107 @@
 </div>
 
 <style>
-	.pricing h1 {
-		font-family: var(--site-font-display);
-		font-weight: 800;
-		font-size: clamp(2rem, 5vw, 3rem);
-		letter-spacing: -0.03em;
-		margin: 0 0 12px;
-	}
-
 	.lead {
-		margin: 0 0 24px;
+		margin: 0 0 28px;
 		color: var(--site-muted);
 		max-width: 36rem;
+		font-size: 1.1rem;
 	}
 
 	.billing-toggle {
 		display: inline-flex;
 		gap: 4px;
-		padding: 4px;
-		margin: 0 0 32px;
+		padding: 5px;
+		margin: 0 0 40px;
+		border-radius: 999px;
+		background: var(--site-surface-2);
 		border: 1px solid var(--site-border);
-		background: var(--site-bg);
 	}
 
 	.toggle-btn {
 		appearance: none;
 		border: 0;
+		border-radius: 999px;
 		background: transparent;
 		color: var(--site-muted);
-		font-family: var(--site-font-mono);
-		font-size: 0.8rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		padding: 8px 18px;
+		font-family: var(--site-font-body);
+		font-size: 0.95rem;
+		font-weight: 800;
+		padding: 8px 22px;
 		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+	.toggle-btn:hover {
+		color: var(--site-text);
 	}
 
 	.toggle-btn.active {
-		background: var(--site-accent);
-		color: var(--site-bg);
+		background: var(--site-surface);
+		color: var(--site-accent);
+		box-shadow: var(--site-shadow);
 	}
 
 	.tiers {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 12px;
-		max-width: 960px;
+		gap: 20px;
 		align-items: stretch;
 	}
 
 	.tier {
-		padding: 28px 24px;
-		background: var(--site-bg);
+		position: relative;
+		padding: 32px 26px 26px;
+		background: var(--site-surface);
 		border: 1px solid var(--site-border);
+		border-radius: var(--site-radius);
+		box-shadow: var(--site-shadow);
 		display: flex;
 		flex-direction: column;
+		align-items: flex-start;
+	}
+	.tier::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		height: 10px;
+		border-radius: var(--site-radius) var(--site-radius) 0 0;
+		background: var(--site-sage-soft);
+	}
+	.tier:nth-child(2)::before {
+		background: var(--site-mustard-soft);
 	}
 
 	.tier-featured {
-		background: var(--site-surface);
-		border-color: var(--site-accent);
+		border: 2px dashed var(--site-accent);
+	}
+	.tier-featured::before,
+	.tier-featured:nth-child(2)::before {
+		background: var(--site-accent-soft);
+	}
+
+	.tier-badge {
+		position: absolute;
+		top: -14px;
+		right: 18px;
+		padding: 2px 12px;
+		border-radius: 999px;
+		background: var(--site-accent);
+		color: #fff;
+		font-family: var(--site-font-hand);
+		font-size: 1.2rem;
+		transform: rotate(3deg);
 	}
 
 	.tier h2 {
-		font-family: var(--site-font-display);
-		font-size: 1.35rem;
-		margin: 0 0 8px;
+		font-size: 1.5rem;
+		margin: 0 0 6px;
 	}
 
 	.price {
 		font-family: var(--site-font-display);
-		font-size: 2rem;
+		font-size: 2.1rem;
 		font-weight: 700;
 		margin: 0 0 20px;
 		color: var(--site-text);
@@ -437,67 +471,72 @@
 
 	.price-loading {
 		color: var(--site-muted);
-		font-size: 1.25rem;
+		font-size: 1.15rem;
+		font-weight: 600;
 	}
 
 	.price-note {
-		font-size: 0.75rem;
-		font-weight: 400;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		font-family: var(--site-font-body);
+		font-size: 0.9rem;
+		font-weight: 600;
 		color: var(--site-muted);
-		margin-left: 6px;
+		margin-left: 4px;
 	}
 
 	.tier ul {
 		margin: 0 0 24px;
 		padding: 0;
 		list-style: none;
-		color: var(--site-muted);
-		font-size: 0.85rem;
+		color: var(--site-text);
+		font-size: 0.95rem;
 		flex: 1;
+		align-self: stretch;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
 	}
 
 	.tier li {
-		padding: 8px 0;
-		border-top: 1px solid var(--site-border);
+		position: relative;
+		padding-left: 28px;
 	}
-
-	.tier li:last-child {
-		border-bottom: 1px solid var(--site-border);
+	.tier li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.2em;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		background: var(--site-sage-soft)
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3 3 7-7' fill='none' stroke='%2355784a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+			center / 12px no-repeat;
 	}
 
 	.status {
 		margin: 0 0 12px;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--site-accent);
-	}
-
-	.fineprint {
-		margin: 12px 0 0;
-		font-size: 0.7rem;
-		color: var(--site-muted);
-		max-width: 22rem;
+		font-family: var(--site-font-hand);
+		font-size: 1.4rem;
+		color: var(--site-ok);
 	}
 
 	.referral {
-		margin-top: 40px;
-		max-width: 420px;
-		padding-top: 28px;
-		border-top: 1px solid var(--site-border);
+		margin-top: 48px;
+		max-width: 460px;
+		padding: 24px;
+		border-radius: var(--site-radius);
+		background: var(--site-surface-2);
+		border: 2px dashed var(--site-border-strong);
 	}
 
 	.referral h2 {
-		font-family: var(--site-font-display);
-		font-size: 1.15rem;
+		font-size: 1.3rem;
 		margin: 0 0 12px;
 	}
 
 	.attr-status,
 	.attr-meta {
-		font-size: 0.75rem;
+		font-size: 0.9rem;
 		margin: 0 0 12px;
 	}
 
@@ -509,30 +548,8 @@
 	}
 
 	.referral-row label {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
 		flex: 1;
 		min-width: 160px;
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--site-muted);
-	}
-
-	.referral-row input {
-		appearance: none;
-		border: 1px solid var(--site-border);
-		background: var(--site-surface);
-		color: var(--site-text);
-		padding: 10px 12px;
-		font-family: var(--site-font-mono);
-		font-size: 0.9rem;
-		width: 100%;
-	}
-
-	.referral-row input:focus {
-		outline: 1px solid var(--site-accent);
 	}
 
 	@media (max-width: 900px) {

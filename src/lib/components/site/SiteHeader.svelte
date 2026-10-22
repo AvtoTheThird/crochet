@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/supabase/session.svelte.js';
 	import { signOut } from '$lib/supabase/auth.js';
+	import BrandMark from './BrandMark.svelte';
 
 	async function logout() {
 		await signOut();
@@ -19,7 +20,10 @@
 </script>
 
 <header class="site-header">
-	<a class="site-brand" href={resolve('/')}>Qsovio</a>
+	<a class="site-brand" href={resolve('/')}>
+		<BrandMark />
+		Qsovio
+	</a>
 	<nav class="site-nav" aria-label="Main">
 		<a href={resolve('/gallery')}>Gallery</a>
 		<a href={resolve('/pricing')}>Pricing</a>
@@ -30,7 +34,7 @@
 			<button type="button" class="site-nav-btn" onclick={logout}>Log out</button>
 			<a class="site-avatar-link" href={resolve('/profile')} aria-label="Profile" title="Profile">
 				{#if avatarUrl}
-					<img class="site-avatar" src={avatarUrl} alt="Profile" />
+					<img class="site-avatar" src={avatarUrl} alt="" />
 				{:else}
 					<span class="site-avatar site-avatar-fallback">{initial}</span>
 				{/if}
@@ -48,38 +52,38 @@
 <style>
 	.site-avatar-link {
 		display: inline-flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 3px;
-		line-height: 0;
+		gap: 8px;
 		text-decoration: none;
 	}
 	.site-avatar-name {
-		max-width: 80px;
+		max-width: 100px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-family: var(--site-font-mono);
-		font-size: 0.6rem;
-		line-height: 1.2;
-		color: var(--site-muted);
+		font-size: 0.9rem;
+		color: var(--site-text);
 	}
 	.site-avatar {
-		width: 30px;
-		height: 30px;
+		width: 34px;
+		height: 34px;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 1px solid var(--site-border);
+		border: 2px solid var(--site-mustard);
 		display: inline-block;
 	}
 	.site-avatar-fallback {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--site-surface);
+		background: var(--site-mustard-soft);
 		color: var(--site-text);
-		font-family: var(--site-font-mono);
-		font-size: 0.8rem;
-		font-weight: 700;
+		font-size: 0.95rem;
+		font-weight: 800;
+	}
+	@media (max-width: 560px) {
+		.site-avatar-name {
+			display: none;
+		}
 	}
 </style>

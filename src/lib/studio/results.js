@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { getColorLabel } from './utils.js';
+import { notify } from '$lib/ui/dialogs.svelte.js';
 
 export function buildCsvText() {
 	const csvLines = ['Row,Direction,Color,Name,Count'];
@@ -67,6 +68,7 @@ export async function copyCSV(e) {
 		document.execCommand('copy');
 		ta.remove();
 	}
+	notify('Pattern copied as CSV. Paste it into a spreadsheet.');
 	const btn = e?.currentTarget instanceof HTMLElement ? e.currentTarget : null;
 	if (!btn) return;
 	const prev = btn.textContent;

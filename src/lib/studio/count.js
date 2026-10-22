@@ -68,7 +68,7 @@ export function drawCountOverlay(pw, ph, rows, cols) {
       const cy = cellY + cellH / 2;
 
       const fontSize = Math.max(7, Math.min(cellH * 0.55, cellW * 0.6, 14));
-      countCtx.font = `bold ${fontSize}px 'Space Mono', monospace`;
+      countCtx.font = `800 ${fontSize}px 'Nunito', system-ui, sans-serif`;
       countCtx.textAlign = 'center';
       countCtx.textBaseline = 'middle';
 
