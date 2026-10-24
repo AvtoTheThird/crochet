@@ -44,6 +44,11 @@
 	});
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex, nofollow" />
+	<title>Signing in · Qsovio</title>
+</svelte:head>
+
 <main class="callback">
 	<p>{message}</p>
 </main>

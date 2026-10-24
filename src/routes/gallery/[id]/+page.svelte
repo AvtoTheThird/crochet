@@ -12,6 +12,7 @@
 	import { notify } from '$lib/ui/dialogs.svelte.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
+	import { pageTitle } from '$lib/site/seo.js';
 	import '$lib/styles/site.css';
 
 	/** @type {any | null} */
@@ -26,6 +27,16 @@
 		item
 			? `${item.likes_count ?? 0} ${(item.likes_count ?? 0) === 1 ? 'like' : 'likes'}`
 			: ''
+	);
+	const detailTitle = $derived(
+		item?.name
+			? pageTitle(`${item.name} — Crochet Tapestry Pattern`)
+			: pageTitle('Crochet Tapestry Pattern')
+	);
+	const detailDescription = $derived(
+		item?.name
+			? `Crochet tapestry pattern “${item.name}” by ${item.author_username || 'a Qsovio maker'}. Preview free; unlock the full tapestry pattern on a paid plan.`
+			: 'Browse a crochet tapestry pattern from the Qsovio gallery.'
 	);
 	/** @type {{ hex: string, yarn_label?: string, count?: number }[]} */
 	const palette = $derived(
@@ -98,6 +109,15 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>{detailTitle}</title>
+	<meta name="description" content={detailDescription} />
+	<meta property="og:title" content={detailTitle} />
+	<meta property="og:description" content={detailDescription} />
+	<meta name="twitter:title" content={detailTitle} />
+	<meta name="twitter:description" content={detailDescription} />
+</svelte:head>
 
 <div class="site-page">
 	<SiteHeader />

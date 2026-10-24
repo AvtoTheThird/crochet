@@ -1,3 +1,10 @@
-# allow crawling everything by default
+# Public marketing pages are crawlable; app/auth routes stay out of the index.
 User-agent: *
-Disallow:
+Disallow: /studio
+Disallow: /profile
+Disallow: /auth/
+Disallow: /welcome
+Disallow: /api/
+Disallow: /flitt
+
+Sitemap: https://qsovio.com/sitemap.xml

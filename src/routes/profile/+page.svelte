@@ -211,6 +211,11 @@
 	);
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex, nofollow" />
+	<title>Profile · Qsovio</title>
+</svelte:head>
+
 <div class="site-page">
 	<SiteHeader />
 

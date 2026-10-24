@@ -490,17 +490,33 @@ a.btn { display: inline-block; text-decoration: none; }
   background-size: 18px 18px;
   overflow: auto;
   position: relative;
-  min-height: 400px;
+  /* 0 (not 400px): short landscape mains are <400px; a floor clipped the
+     scrollport bottom under .main { overflow: hidden }. */
+  min-height: 0;
   padding: 20px;
 }
 
-/* Extra scroll margin so the artwork can be dragged partially off-screen */
+/* Pan room lives on the wrapper as margin — padding-bottom on a flex
+   overflow scroller often does not enlarge scrollHeight, so the first
+   (bottom) pattern rows could not be dragged into view on mobile. */
 .canvas-area.has-image {
-  padding: min(42vh, 320px) min(42vw, 320px);
+  padding: 0;
   cursor: grab;
   touch-action: none;
 }
 .canvas-area.has-image.panning { cursor: grabbing; user-select: none; }
+
+.canvas-area.has-image #canvas-wrapper {
+  margin: min(42vh, 320px) min(42vw, 320px);
+}
+
+/* Walk fullscreen: float Prev/Next + home indicator cover the bottom of
+   the scrollport; add that stack on top of the normal pan margin. */
+#main-layout[data-step="5"].sidebar-collapsed .canvas-area.has-image #canvas-wrapper {
+  margin-bottom: calc(
+    min(42vh, 320px) + max(52px, env(safe-area-inset-bottom, 0px)) + 56px
+  );
+}
 
 .drop-zone {
   display: flex;

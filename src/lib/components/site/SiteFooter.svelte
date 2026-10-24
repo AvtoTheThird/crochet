@@ -11,7 +11,7 @@
 			<BrandMark size={24} />
 			{company.name}
 		</div>
-		<p class="site-footer-tag">Made with love for people who make things.</p>
+		<p class="site-footer-tag">Tapestry pattern creator for crochet makers.</p>
 		<a class="site-footer-contact" href="mailto:{company.supportEmail}">{company.supportEmail}</a>
 	</div>
 	<div class="site-footer-links">

@@ -4,7 +4,12 @@
 	import { listGallery } from '$lib/supabase/gallery.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
+	import { pageTitle } from '$lib/site/seo.js';
 	import '$lib/styles/site.css';
+
+	const galleryTitle = pageTitle('Crochet Tapestry Pattern Gallery');
+	const galleryDescription =
+		'Browse crochet tapestry patterns shared by the Qsovio community. Preview free; unlock full tapestry patterns on a paid plan.';
 
 	/** @type {any[]} */
 	let items = $state([]);
@@ -22,15 +27,24 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{galleryTitle}</title>
+	<meta name="description" content={galleryDescription} />
+	<meta property="og:title" content={galleryTitle} />
+	<meta property="og:description" content={galleryDescription} />
+	<meta name="twitter:title" content={galleryTitle} />
+	<meta name="twitter:description" content={galleryDescription} />
+</svelte:head>
+
 <div class="site-page">
 	<SiteHeader />
 
 	<main class="site-section gallery">
 		<p class="site-eyebrow">made by our community</p>
-		<h1 class="site-page-title">Gallery</h1>
+		<h1 class="site-page-title">Crochet tapestry pattern gallery</h1>
 		<p class="lead">
-			Patterns shared by fellow makers. Anyone can browse the pictures and descriptions; paid plans
-			unlock the full pattern so you can add it to your projects.
+			Tapestry patterns shared by fellow makers. Anyone can browse the pictures and descriptions;
+			paid plans unlock the full crochet tapestry pattern so you can add it to your projects.
 		</p>
 
 		{#if loading}

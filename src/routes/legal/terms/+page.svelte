@@ -5,7 +5,7 @@
 
 <svelte:head>
 	<title>Terms of Service — {company.name}</title>
-	<meta name="description" content="Terms of Service for {company.name}." />
+	<meta name="description" content="Terms of Service for {company.name}, the tapestry pattern creator." />
 </svelte:head>
 
 <LegalPage title="Terms of Service" updated={company.lastUpdated}>

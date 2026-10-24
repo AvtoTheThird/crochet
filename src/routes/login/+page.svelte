@@ -18,6 +18,8 @@
 	let email = $state('');
 	let username = $state('');
 	let password = $state('');
+	let confirmPassword = $state('');
+	let showPassword = $state(false);
 	let firstName = $state('');
 	let lastName = $state('');
 	let referralCode = $state('');
@@ -35,6 +37,8 @@
 		mode = next;
 		errorMsg = '';
 		infoMsg = '';
+		confirmPassword = '';
+		showPassword = false;
 	}
 
 	async function submit(e) {
@@ -47,6 +51,9 @@
 				await signInWithPassword(identifier, password);
 				goto(resolve('/studio/load'));
 			} else {
+				if (password !== confirmPassword) {
+					throw new Error('Passwords do not match');
+				}
 				const manual = referralCode.trim();
 				if (manual) {
 					const looked = await lookupReferralCode(manual);
@@ -82,6 +89,8 @@
 					mode = 'login';
 					identifier = email;
 					password = '';
+					confirmPassword = '';
+					showPassword = false;
 				}
 			}
 		} catch (err) {
@@ -92,6 +101,14 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Log in · Qsovio Tapestry Pattern Creator</title>
+	<meta
+		name="description"
+		content="Log in or create a free Qsovio account to start your crochet tapestry pattern from a pixel image."
+	/>
+</svelte:head>
+
 <div class="site-page">
 	<SiteHeader />
 
@@ -100,7 +117,8 @@
 		<p class="site-eyebrow">{mode === 'login' ? 'welcome back!' : 'so glad you’re here'}</p>
 		<h1>{mode === 'login' ? 'Log in' : 'Create your account'}</h1>
 		<p class="site-muted intro">
-			Free accounts include one project. Upgrade anytime for more projects on the go.
+			Free accounts include one tapestry pattern project. Upgrade anytime for more crochet tapestry
+			patterns on the go.
 		</p>
 
 		{#if auth.loading}
@@ -109,14 +127,14 @@
 			<div class="tabs" role="tablist">
 				<button
 					type="button"
-					class:active={mode === 'login'}
+					class={{ active: mode === 'login' }}
 					onclick={() => switchMode('login')}
 				>
 					Log in
 				</button>
 				<button
 					type="button"
-					class:active={mode === 'signup'}
+					class={{ active: mode === 'signup' }}
 					onclick={() => switchMode('signup')}
 				>
 					Sign up
@@ -161,15 +179,76 @@
 						Email
 						<input type="email" bind:value={email} autocomplete="email" required />
 					</label>
+					{#snippet passwordToggle()}
+						<button
+							type="button"
+							class="password-toggle"
+							aria-label={showPassword ? 'Hide password' : 'Show password'}
+							aria-pressed={showPassword}
+							onclick={() => (showPassword = !showPassword)}
+						>
+							{#if showPassword}
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path
+										d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+									/>
+									<line x1="1" y1="1" x2="23" y2="23" />
+								</svg>
+							{:else}
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+									<circle cx="12" cy="12" r="3" />
+								</svg>
+							{/if}
+						</button>
+					{/snippet}
 					<label>
 						Password
-						<input
-							type="password"
-							bind:value={password}
-							autocomplete="new-password"
-							required
-							minlength="6"
-						/>
+						<span class="password-field">
+							<input
+								type={showPassword ? 'text' : 'password'}
+								bind:value={password}
+								autocomplete="new-password"
+								required
+								minlength="6"
+							/>
+							{@render passwordToggle()}
+						</span>
+					</label>
+					<label>
+						Repeat password
+						<span class="password-field">
+							<input
+								type={showPassword ? 'text' : 'password'}
+								bind:value={confirmPassword}
+								autocomplete="new-password"
+								required
+								minlength="6"
+							/>
+							{@render passwordToggle()}
+						</span>
 					</label>
 					<label>
 						Referral code (optional)
@@ -264,6 +343,39 @@
 		font-size: 0.9rem;
 		font-weight: 700;
 		color: var(--site-text);
+	}
+	.password-field {
+		position: relative;
+		display: block;
+	}
+	.password-field input {
+		padding-right: 44px;
+	}
+	.password-toggle {
+		appearance: none;
+		position: absolute;
+		top: 50%;
+		right: 6px;
+		transform: translateY(-50%);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		margin: 0;
+		padding: 0;
+		border: none;
+		border-radius: var(--site-radius-sm);
+		background: transparent;
+		color: var(--site-muted);
+		cursor: pointer;
+	}
+	.password-toggle:hover {
+		color: var(--site-accent);
+	}
+	.password-toggle:focus-visible {
+		outline: 2px solid var(--site-accent);
+		outline-offset: 1px;
 	}
 	.aside {
 		margin: 24px 0 0;

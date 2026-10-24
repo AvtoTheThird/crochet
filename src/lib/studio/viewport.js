@@ -14,13 +14,31 @@ let bakeTimer = 0;
 /** @type {{ x: number, y: number } | null} */
 let pendingAnchor = null;
 
+/** Bottom chrome covering the scrollport in fullscreen pattern walk. */
+function walkBottomChromePx() {
+  if (state.currentStep !== 5) return 0;
+  const layout = document.getElementById('main-layout');
+  if (!layout?.classList.contains('sidebar-collapsed')) return 0;
+  const area = dom.canvasArea;
+  const btn =
+    document.getElementById('walk-float-next') ||
+    document.getElementById('walk-float-prev');
+  if (!area || !btn) return 110;
+  const areaRect = area.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  if (btnRect.height <= 0) return 110;
+  // From canvas-area bottom up to the top of the float Prev/Next stack.
+  return Math.max(0, Math.ceil(areaRect.bottom - btnRect.top + 8));
+}
+
 export function updateBaseDisplayScale() {
   if (!state.workingCanvas) return;
   const area = dom.canvasArea;
-  // Fit to the visible viewport (not scrollable padding margins).
+  // Fit to the visible viewport (not scrollable pan margins).
   // Allow upscaling so small pixel-art saves still fill the studio view.
   const maxW = Math.max(80, area.clientWidth * 0.92);
-  const maxH = Math.max(80, area.clientHeight * 0.92);
+  const usableH = Math.max(80, area.clientHeight - walkBottomChromePx());
+  const maxH = Math.max(80, usableH * 0.92);
   const sw = state.workingCanvas.width;
   const sh = state.workingCanvas.height;
   state.baseDisplayScale = Math.min(maxW / sw, maxH / sh);
@@ -32,7 +50,7 @@ export function updateBaseDisplayScale() {
 export function centerCanvasInView() {
   const area = dom.canvasArea;
   if (!area) return;
-  // Wait two frames so has-image padding + wrapper size are laid out.
+  // Wait two frames so has-image wrapper margins + size are laid out.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       area.scrollLeft = Math.max(0, (area.scrollWidth - area.clientWidth) / 2);

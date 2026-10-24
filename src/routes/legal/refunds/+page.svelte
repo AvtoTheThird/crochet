@@ -5,7 +5,10 @@
 
 <svelte:head>
 	<title>Refund &amp; Cancellation Policy — {company.name}</title>
-	<meta name="description" content="Refund and cancellation policy for {company.name}." />
+	<meta
+		name="description"
+		content="Refund and cancellation policy for {company.name}, the tapestry pattern creator."
+	/>
 </svelte:head>
 
 <LegalPage title="Refund & Cancellation Policy" updated={company.lastUpdated}>

@@ -21,6 +21,11 @@
 	});
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex, nofollow" />
+	<title>Studio · Qsovio</title>
+</svelte:head>
+
 {#if auth.loading}
 	<main class="studio-boot">Loading…</main>
 {:else if auth.session}

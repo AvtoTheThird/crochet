@@ -5,7 +5,7 @@
 
 <svelte:head>
 	<title>Privacy Policy — {company.name}</title>
-	<meta name="description" content="Privacy Policy for {company.name}." />
+	<meta name="description" content="Privacy Policy for {company.name}, the tapestry pattern creator." />
 </svelte:head>
 
 <LegalPage title="Privacy Policy" updated={company.lastUpdated}>

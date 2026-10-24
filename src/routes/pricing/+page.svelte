@@ -14,7 +14,12 @@
 	import { getMyPaddleCustomerId } from '$lib/supabase/profile.js';
 	import { tiers, priceIdFor } from '$lib/paddle/tiers.js';
 	import { fetchPriceMap } from '$lib/paddle/prices.js';
+	import { pageTitle } from '$lib/site/seo.js';
 	import '$lib/styles/site.css';
+
+	const pricingTitle = pageTitle('Pricing for the Tapestry Pattern Creator');
+	const pricingDescription =
+		'Start free with Qsovio’s tapestry pattern creator. Upgrade for more crochet tapestry pattern projects and full gallery access.';
 
 	// ---- Paddle pricing state -------------------------------------------------
 	/** @type {'month' | 'year'} */
@@ -189,6 +194,15 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{pricingTitle}</title>
+	<meta name="description" content={pricingDescription} />
+	<meta property="og:title" content={pricingTitle} />
+	<meta property="og:description" content={pricingDescription} />
+	<meta name="twitter:title" content={pricingTitle} />
+	<meta name="twitter:description" content={pricingDescription} />
+</svelte:head>
+
 <div class="site-page">
 	<SiteHeader />
 
@@ -196,8 +210,8 @@
 		<p class="site-eyebrow">pick what suits you</p>
 		<h1 class="site-page-title">Pricing</h1>
 		<p class="lead">
-			Start free with one project. Upgrade when you want more projects on the go or full access to
-			the gallery.
+			Start free with one tapestry pattern project. Upgrade when you want more crochet tapestry
+			patterns on the go or full access to the gallery.
 		</p>
 
 		<div class="billing-toggle" role="group" aria-label="Billing cycle">

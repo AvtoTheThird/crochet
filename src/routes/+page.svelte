@@ -10,13 +10,53 @@
 	import { getPaddle } from '$lib/paddle/client.js';
 	import { tiers, priceIdFor } from '$lib/paddle/tiers.js';
 	import { fetchPriceMap } from '$lib/paddle/prices.js';
+	import { company } from '$lib/site/company.js';
+	import { seo, siteUrl } from '$lib/site/seo.js';
 	import '$lib/styles/site.css';
+
+	const homeTitle = `${company.name} · Tapestry Pattern Creator — Pixel to Crochet Tapestry Pattern`;
+	const homeDescription =
+		'Free tapestry pattern creator: convert any pixel image into a crochet tapestry pattern with yarn colors and row-by-row stitch counts. Make pixel to tapestry crochet patterns in minutes.';
+
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'WebSite',
+				name: company.name,
+				url: siteUrl,
+				description: homeDescription,
+				publisher: { '@id': `${siteUrl}/#organization` }
+			},
+			{
+				'@type': 'Organization',
+				'@id': `${siteUrl}/#organization`,
+				name: company.name,
+				url: siteUrl,
+				email: company.supportEmail
+			},
+			{
+				'@type': 'WebApplication',
+				name: `${company.name} Tapestry Pattern Creator`,
+				url: siteUrl,
+				applicationCategory: 'DesignApplication',
+				operatingSystem: 'Web',
+				description: homeDescription,
+				offers: {
+					'@type': 'Offer',
+					price: '0',
+					priceCurrency: 'USD'
+				},
+				creator: { '@id': `${siteUrl}/#organization` }
+			}
+		]
+	};
 
 	const steps = [
 		{
 			n: '1',
 			title: 'Upload & crop',
-			body: 'Pick a pixelated picture and trim it down to just the part you want to stitch.',
+			body: 'Pick a pixelated picture and trim it down to just the part you want in your tapestry pattern.',
 			video: '/media/steps/step-01.mp4',
 			color: '#c65d50',
 			soft: '#f9e0d9'
@@ -24,7 +64,7 @@
 		{
 			n: '2',
 			title: 'Set the grid',
-			body: 'Line the grid up with the pixels so every little square becomes one stitch.',
+			body: 'Line the grid up with the pixels so every little square becomes one stitch in your crochet tapestry pattern.',
 			video: '/media/steps/step-02.mp4',
 			color: '#d49a2f',
 			soft: '#fbeccb'
@@ -50,7 +90,7 @@
 	const perks = [
 		{
 			title: 'Counts for every row',
-			body: 'No more squinting at graph paper. Each row reads like “4 Oat, 4 Berry, 2 Cherry”.',
+			body: 'No more squinting at graph paper. Each row of your tapestry pattern reads like “4 Oat, 4 Berry, 2 Cherry”.',
 			bg: 'var(--site-accent-soft)'
 		},
 		{
@@ -138,7 +178,17 @@
 </script>
 
 <svelte:head>
-	<title>Qsovio · Turn pictures into crochet tapestry patterns</title>
+	<title>{homeTitle}</title>
+	<meta name="description" content={homeDescription} />
+	<meta name="keywords" content={seo.keywords} />
+
+	<meta property="og:title" content={homeTitle} />
+	<meta property="og:description" content={homeDescription} />
+
+	<meta name="twitter:title" content={homeTitle} />
+	<meta name="twitter:description" content={homeDescription} />
+
+	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
 </svelte:head>
 
 <div class="site-page">
@@ -148,13 +198,13 @@
 		<section class="hero" aria-labelledby="hero-heading">
 			<div class="hero-inner">
 				<div class="hero-copy">
-					<p class="site-eyebrow">from picture to tapestry ♡</p>
+					<p class="site-eyebrow">tapestry pattern creator ♡</p>
 					<h1 id="hero-heading">
-						Turn your favorite pictures into <em>crochet tapestry</em> patterns
+						Turn pixels into <em>crochet tapestry</em> patterns
 					</h1>
 					<p class="hero-lead">
-						Upload a pixelated image, pick your yarn colors, and get a row-by-row stitch count you
-						can actually follow, one cozy row at a time.
+						Qsovio is a free tapestry pattern creator: upload a pixel image, pick your yarn colors,
+						and get a crochet tapestry pattern with row-by-row stitch counts you can actually follow.
 					</p>
 					<div class="hero-actions">
 						<a class="site-btn site-btn-primary" href={startHref}>Make my first pattern</a>
@@ -178,8 +228,10 @@
 		<section class="site-section how" aria-labelledby="how-heading">
 			<div class="section-head">
 				<p class="site-eyebrow">easy as 1, 2, 3, 4</p>
-				<h2 id="how-heading">How it works</h2>
-				<p>Watch each step in action, then try it yourself with your own picture.</p>
+				<h2 id="how-heading">From pixel to tapestry crochet pattern</h2>
+				<p>
+					Watch each step in action, then turn your own picture into a tapestry pattern in minutes.
+				</p>
 			</div>
 			<StepShowcase {steps} />
 		</section>
@@ -201,8 +253,8 @@
 					<p class="site-eyebrow">made by our community</p>
 					<h2 id="gallery-promo-heading">Fresh from the gallery</h2>
 					<p>
-						Peek at patterns other makers have shared. Previews are free; paid plans unlock the full
-						pattern so you can add it to your projects.
+						Peek at crochet tapestry patterns other makers have shared. Previews are free; paid plans
+						unlock the full pattern so you can add it to your projects.
 					</p>
 				</div>
 				<a class="site-btn" href={resolve('/gallery')}>Browse the gallery</a>
@@ -284,7 +336,10 @@
 		<section class="final-cta" aria-labelledby="final-cta-heading">
 			<div class="final-cta-card">
 				<h2 id="final-cta-heading">Got a picture in mind?</h2>
-				<p>Grab your hook. Your next tapestry is a few clicks away.</p>
+				<p>
+					Grab your hook. Your next crochet tapestry pattern is a few clicks away — pixel to tapestry,
+					ready to stitch.
+				</p>
 				<a class="site-btn site-btn-primary" href={startHref}>Start my pattern</a>
 			</div>
 		</section>
