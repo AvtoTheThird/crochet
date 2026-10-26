@@ -2,7 +2,8 @@
 
 create table public.payments (
 	id uuid primary key default gen_random_uuid(),
-	user_id uuid not null references public.users (id) on delete restrict,
+	-- Nullable so account deletion can anonymize while keeping tax/accounting rows.
+	user_id uuid references public.users (id) on delete set null,
 	provider text not null,
 	provider_payment_id text not null,
 	provider_order_id text,

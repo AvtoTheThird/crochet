@@ -25,7 +25,9 @@ export function getSupabase() {
 		auth: {
 			autoRefreshToken: true,
 			persistSession: true,
-			detectSessionInUrl: true,
+			// Callback route exchanges the code manually; auto-detect races with it
+			// and surfaces "PKCE code verifier not found".
+			detectSessionInUrl: false,
 			flowType: 'pkce'
 		}
 	});

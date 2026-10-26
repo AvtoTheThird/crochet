@@ -20,3 +20,7 @@ verify_jwt = false
 [functions.cancel-subscription]
 # Called from the browser by a signed-in user; requires a valid Supabase JWT.
 verify_jwt = true
+
+[functions.delete-account]
+# Called from the browser by a signed-in user; requires a valid Supabase JWT.
+verify_jwt = true

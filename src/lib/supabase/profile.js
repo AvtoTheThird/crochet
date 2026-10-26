@@ -142,6 +142,23 @@ export async function getMyPaddleCustomerId() {
 }
 
 /**
+ * Surface Edge Function JSON `{ error }` when invoke fails.
+ * @param {unknown} error
+ * @param {string} fallback
+ */
+async function functionErrorMessage(error, fallback) {
+	const ctx = /** @type {any} */ (error)?.context;
+	let message = /** @type {any} */ (error)?.message || fallback;
+	try {
+		const body = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
+		if (body?.error) message = body.error;
+	} catch {
+		/* ignore */
+	}
+	return message;
+}
+
+/**
  * Cancel the user's active subscription at the end of the current billing
  * period (keeps access until then). Runs server-side via Paddle; entitlement
  * changes are applied by the resulting webhook.
@@ -150,16 +167,31 @@ export async function cancelMySubscription() {
 	const supabase = getSupabase();
 	const { data, error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
 	if (error) {
-		// Surface the function's JSON error message when present.
-		const ctx = /** @type {any} */ (error).context;
-		let message = error.message;
-		try {
-			const body = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
-			if (body?.error) message = body.error;
-		} catch {
-			/* ignore */
-		}
-		throw new Error(message || 'Could not cancel subscription');
+		throw new Error(await functionErrorMessage(error, 'Could not cancel subscription'));
 	}
+	return data;
+}
+
+/**
+ * Permanently delete the signed-in account (cancels paid access, removes
+ * projects/images, anonymizes payment records). Irreversible.
+ */
+export async function deleteMyAccount() {
+	const supabase = getSupabase();
+	const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
+	if (error) {
+		throw new Error(await functionErrorMessage(error, 'Could not delete account'));
+	}
+	if (data && data.ok === false) {
+		throw new Error(data.error || 'Could not delete account');
+	}
+
+	// Local session may already be invalid after Auth delete; clear SPA state.
+	try {
+		await supabase.auth.signOut({ scope: 'local' });
+	} catch {
+		/* ignore */
+	}
+	await setAuthSession(null);
 	return data;
 }

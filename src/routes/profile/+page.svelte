@@ -9,10 +9,11 @@
 		changePassword,
 		uploadAvatar,
 		getMySubscription,
-		cancelMySubscription
+		cancelMySubscription,
+		deleteMyAccount
 	} from '$lib/supabase/profile.js';
 	import { currentTier } from '$lib/supabase/entitlements.js';
-	import { showConfirm } from '$lib/ui/dialogs.svelte.js';
+	import { showAlert, showConfirm, showPrompt } from '$lib/ui/dialogs.svelte.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
 	import '$lib/styles/site.css';
@@ -46,6 +47,10 @@
 	let cancelBusy = $state(false);
 	let subMsg = $state('');
 	let subErr = $state('');
+
+	// --- delete account ---
+	let deleteBusy = $state(false);
+	let deleteErr = $state('');
 
 	let prefilled = false;
 
@@ -178,6 +183,39 @@
 			subErr = err instanceof Error ? err.message : 'Could not cancel subscription';
 		} finally {
 			cancelBusy = false;
+		}
+	}
+
+	async function deleteAccount() {
+		deleteErr = '';
+		const typed = await showPrompt({
+			title: 'Delete your account permanently?',
+			message:
+				'This permanently deletes your account, projects, uploaded images, gallery posts, and profile data. If you have a Maker subscription, it is cancelled immediately and you lose paid access right away (not at the end of the billing period). If you bought Lifetime, that access ends with this account and cannot be recovered. This cannot be undone.',
+			label: 'Type delete me to confirm',
+			placeholder: 'delete me',
+			confirmLabel: 'Delete my account',
+			cancelLabel: 'Keep my account',
+			tone: 'danger'
+		});
+		if (typed === null) return;
+		if (String(typed).trim() !== 'delete me') {
+			await showAlert({
+				title: 'Confirmation did not match',
+				message: 'To delete your account you must type delete me exactly (all lowercase).',
+				tone: 'danger'
+			});
+			return;
+		}
+
+		deleteBusy = true;
+		try {
+			await deleteMyAccount();
+			goto(resolve('/'));
+		} catch (err) {
+			deleteErr = err instanceof Error ? err.message : 'Could not delete account';
+		} finally {
+			deleteBusy = false;
 		}
 	}
 
@@ -369,6 +407,30 @@
 				{#if subMsg}<p class="site-ok">{subMsg}</p>{/if}
 			</section>
 
+			<!-- Delete account -->
+			<section class="card danger-zone">
+				<h2>Delete account</h2>
+				<p class="site-muted delete-copy">
+					Permanently remove your account and personal data from Qsovio. Your projects, images,
+					and profile will be deleted. If you are on a paid plan, your subscription is cancelled
+					immediately and you lose access to the site’s paid features right away — including
+					Lifetime access tied to this account.
+				</p>
+				<p class="site-muted delete-copy">
+					Prefer step-by-step instructions (including email requests)? See
+					<a href={resolve('/legal/delete-account')}>Delete your account &amp; data</a>.
+				</p>
+				<button
+					type="button"
+					class="site-btn danger"
+					disabled={deleteBusy}
+					onclick={deleteAccount}
+				>
+					{deleteBusy ? 'Deleting…' : 'Delete account'}
+				</button>
+				{#if deleteErr}<p class="site-error">{deleteErr}</p>{/if}
+			</section>
+
 			<div class="footer-actions">
 				<button type="button" class="site-nav-btn" onclick={logout}>Log out</button>
 			</div>
@@ -492,6 +554,14 @@
 	.site-btn.danger:hover:not(:disabled) {
 		background: var(--site-warn);
 		color: #fff;
+	}
+	.danger-zone {
+		border-color: color-mix(in srgb, var(--site-warn) 35%, var(--site-border));
+	}
+	.delete-copy {
+		font-size: 0.92rem;
+		line-height: 1.55;
+		margin: 0 0 12px;
 	}
 	.footer-actions {
 		margin-top: 8px;

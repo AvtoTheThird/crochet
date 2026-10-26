@@ -25,6 +25,7 @@
 		<a href={resolve('/legal/terms')}>Terms</a>
 		<a href={resolve('/legal/privacy')}>Privacy</a>
 		<a href={resolve('/legal/refunds')}>Refunds</a>
+		<a href={resolve('/legal/delete-account')}>Delete account</a>
 	</div>
 </footer>
 

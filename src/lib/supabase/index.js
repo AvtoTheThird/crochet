@@ -46,5 +46,6 @@ export {
 	uploadAvatar,
 	getMySubscription,
 	getMyPaddleCustomerId,
-	cancelMySubscription
+	cancelMySubscription,
+	deleteMyAccount
 } from './profile.js';

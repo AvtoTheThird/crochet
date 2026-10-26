@@ -56,7 +56,10 @@
 	<h2>6. Your rights</h2>
 	<p>
 		Depending on your location, you may have rights to access, correct, export, or delete your
-		personal data. To exercise these, contact us at
+		personal data. You can delete your account and data from your
+		<a href="/profile">profile</a>, or follow the steps on our
+		<a href="/legal/delete-account">Delete your account &amp; data</a> page. You can also contact
+		us at
 		<a href="mailto:{company.supportEmail}">{company.supportEmail}</a>. For payment-related data,
 		you may also contact Paddle as the Merchant of Record.
 	</p>

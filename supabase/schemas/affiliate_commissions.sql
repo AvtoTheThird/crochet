@@ -3,7 +3,8 @@
 create table public.affiliate_commissions (
 	id uuid primary key default gen_random_uuid(),
 	creator_id uuid not null references public.creators (id) on delete restrict,
-	user_id uuid not null references public.users (id) on delete restrict,
+	-- Nullable so buyer account deletion anonymizes without dropping commission history.
+	user_id uuid references public.users (id) on delete set null,
 	payment_id uuid not null references public.payments (id) on delete restrict,
 	payment_provider text not null,
 	provider_payment_id text not null,
