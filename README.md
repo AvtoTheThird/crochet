@@ -6,9 +6,10 @@ SvelteKit app for turning uploaded pixel art into tapestry / run-length stitch p
 
 1. Copy `.env.example` → `.env`
 2. Fill `PUBLIC_SUPABASE_ANON_KEY` from Supabase → **Project Settings → API**
-3. Enable **Google** under Authentication → Providers
-4. Add redirect URL: `http://localhost:5173/auth/callback`
-5. (Done once) schema migration already applied; re-run with `npm run db:migrate` if needed
+3. Enable **Google** and **Facebook** under Authentication → Providers (Client ID/Secret from each console)
+4. Add redirect URLs: `http://localhost:5173/auth/callback` and your production `/auth/callback`
+5. In Google/Meta consoles, set the authorized redirect to `https://<project-ref>.supabase.co/auth/v1/callback`
+6. (Done once) schema migration already applied; re-run with `npm run db:migrate` if needed
 
 ```sh
 npm install
@@ -19,7 +20,7 @@ npm run dev
 
 | URL | Who |
 |-----|-----|
-| `/` | Landing — Google login |
+| `/login` | Email/password + Google / Facebook |
 | `/auth/callback` | OAuth return |
 | `/studio/load` … `/studio/walk` | Studio (logged-in only) |
 

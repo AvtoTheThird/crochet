@@ -8,6 +8,7 @@ export {
 	signInWithPassword,
 	signUpWithPassword,
 	signInWithGoogle,
+	signInWithFacebook,
 	signOut,
 	getUserProfile,
 	syncProviderToken,

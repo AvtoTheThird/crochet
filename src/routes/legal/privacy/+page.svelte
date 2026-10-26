@@ -16,7 +16,7 @@
 
 	<h2>1. Information we collect</h2>
 	<ul>
-		<li><strong>Account information</strong> — your name, username, and email address when you sign up (including via Google sign-in if you choose it).</li>
+		<li><strong>Account information</strong> — your name, username, and email address when you sign up (including via Google or Facebook sign-in if you choose it).</li>
 		<li><strong>Content</strong> — images you upload and the patterns, palettes, and project data you create.</li>
 		<li><strong>Usage data</strong> — basic technical data such as approximate country (from your IP, to localize prices) and standard log data.</li>
 		<li><strong>Payment data</strong> — handled by our payments provider Paddle. We do not store your full card details.</li>
@@ -35,6 +35,7 @@
 		<li><strong>Supabase</strong> — authentication, database, and storage hosting for your account, projects, and images.</li>
 		<li><strong>Paddle</strong> — payment processing and Merchant of Record for purchases; Paddle processes your payment and billing information under its own privacy policy.</li>
 		<li><strong>Google</strong> — only if you choose Google sign-in, for authentication.</li>
+		<li><strong>Facebook / Meta</strong> — only if you choose Facebook sign-in, for authentication.</li>
 		<li><strong>Cloudflare</strong> — hosting and delivery of the web application.</li>
 	</ul>
 	<p>We do not sell your personal information.</p>

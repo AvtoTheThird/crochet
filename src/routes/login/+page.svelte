@@ -3,7 +3,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/supabase/session.svelte.js';
-	import { signInWithPassword, signUpWithPassword, finalizeSignupReferral } from '$lib/supabase/auth.js';
+	import {
+		signInWithPassword,
+		signUpWithPassword,
+		finalizeSignupReferral,
+		signInWithGoogle,
+		signInWithFacebook
+	} from '$lib/supabase/auth.js';
 	import { lookupReferralCode } from '$lib/referral/index.js';
 	import { setReferralCookie } from '$lib/referral/cookie.js';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
@@ -39,6 +45,23 @@
 		infoMsg = '';
 		confirmPassword = '';
 		showPassword = false;
+	}
+
+	/**
+	 * @param {'google' | 'facebook'} provider
+	 */
+	async function signInWithOAuth(provider) {
+		errorMsg = '';
+		infoMsg = '';
+		busy = true;
+		try {
+			if (provider === 'google') await signInWithGoogle();
+			else await signInWithFacebook();
+		} catch (err) {
+			errorMsg = err?.message || 'Something went wrong';
+		} finally {
+			busy = false;
+		}
 	}
 
 	async function submit(e) {
@@ -139,6 +162,44 @@
 				>
 					Sign up
 				</button>
+			</div>
+
+			<div class="oauth">
+				<button
+					type="button"
+					class="site-btn oauth-btn"
+					disabled={busy}
+					onclick={() => signInWithOAuth('google')}
+				>
+					<img
+						class="oauth-logo"
+						src="/media/auth-logos/g-logo.png"
+						alt=""
+						width="20"
+						height="20"
+					/>
+					Continue with Google
+				</button>
+				<button
+					type="button"
+					class="site-btn oauth-btn"
+					disabled={busy}
+					onclick={() => signInWithOAuth('facebook')}
+				>
+					<img
+						class="oauth-logo"
+						src="/media/auth-logos/f-logo.png"
+						alt=""
+						width="20"
+						height="20"
+					/>
+					Continue with Facebook
+				</button>
+				<p class="site-muted oauth-note">Works for new and returning accounts.</p>
+			</div>
+
+			<div class="auth-divider" role="separator">
+				<span>or</span>
 			</div>
 
 			<form class="auth-form" onsubmit={submit}>
@@ -327,6 +388,42 @@
 		background: var(--site-surface);
 		color: var(--site-accent);
 		box-shadow: var(--site-shadow);
+	}
+	.oauth {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.oauth-btn {
+		width: 100%;
+		justify-content: center;
+	}
+	.oauth-logo {
+		width: 1.25rem;
+		height: 1.25rem;
+		object-fit: contain;
+		flex-shrink: 0;
+	}
+	.oauth-note {
+		margin: 0;
+		font-size: 0.85rem;
+		text-align: center;
+	}
+	.auth-divider {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 18px 0;
+		color: var(--site-muted);
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+	.auth-divider::before,
+	.auth-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--site-border);
 	}
 	.auth-form {
 		display: flex;

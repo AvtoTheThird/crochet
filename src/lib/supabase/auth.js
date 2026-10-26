@@ -130,16 +130,29 @@ export async function signInWithPassword(identifier, password) {
 	return data;
 }
 
-/** Optional Google OAuth (when configured in Supabase). */
-export async function signInWithGoogle() {
+/**
+ * Start OAuth with a Supabase provider (Google, Facebook, …).
+ * @param {'google' | 'facebook'} provider
+ */
+async function signInWithOAuthProvider(provider) {
 	const supabase = getSupabase();
 	const redirectTo = `${window.location.origin}/auth/callback`;
 	const { data, error } = await supabase.auth.signInWithOAuth({
-		provider: 'google',
+		provider,
 		options: { redirectTo }
 	});
 	if (error) throw error;
 	return data;
+}
+
+/** Google OAuth (enable under Supabase Authentication → Providers). */
+export async function signInWithGoogle() {
+	return signInWithOAuthProvider('google');
+}
+
+/** Facebook OAuth (enable under Supabase Authentication → Providers). */
+export async function signInWithFacebook() {
+	return signInWithOAuthProvider('facebook');
 }
 
 export async function signOut() {
@@ -160,17 +173,23 @@ export async function getUserProfile(userId) {
 }
 
 /**
+ * Persist OAuth provider + access token on the public.users row.
  * @param {import('@supabase/supabase-js').Session} session
  */
 export async function syncProviderToken(session) {
 	const token = session.provider_token;
 	if (!token || !session.user) return;
 
+	const raw = session.user.app_metadata?.provider;
+	/** @type {'google' | 'facebook' | 'email'} */
+	const auth_provider =
+		raw === 'google' || raw === 'facebook' ? raw : 'email';
+
 	const supabase = getSupabase();
 	await supabase
 		.from('users')
 		.update({
-			auth_provider: 'google',
+			auth_provider,
 			auth_provider_token: token
 		})
 		.eq('id', session.user.id);

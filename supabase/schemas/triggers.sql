@@ -78,6 +78,7 @@ begin
 
 	provider_enum := case
 		when provider = 'google' then 'google'::public.auth_provider
+		when provider = 'facebook' then 'facebook'::public.auth_provider
 		else 'email'::public.auth_provider
 	end;
 
