@@ -18,12 +18,21 @@ function getPaletteStats() {
 function getExportFooterLayout(stats, width, scale) {
   const padding = 10 * scale;
   const lineHeight = 18 * scale;
+  const creditHeight = 16 * scale;
   const entryWidth = 148 * scale;
   const minWidth = 300 * scale;
   const footerWidth = Math.max(width, minWidth);
   const entriesPerRow = Math.max(1, Math.floor((footerWidth - padding * 2) / entryWidth));
   const entryRows = Math.max(1, Math.ceil(stats.length / entriesPerRow));
-  return { width: footerWidth, height: padding * 2 + lineHeight * (1 + entryRows), padding, lineHeight, entryWidth, entriesPerRow };
+  return {
+    width: footerWidth,
+    height: padding * 2 + lineHeight * (1 + entryRows) + creditHeight,
+    padding,
+    lineHeight,
+    entryWidth,
+    entriesPerRow,
+    creditHeight
+  };
 }
 
 function drawExportCells(ctx, width, height, scale, offsetX = 0, offsetY = 0) {
@@ -113,6 +122,7 @@ function drawExportNumberOverlay(ctx, scale, offsetX = 0, offsetY = 0) {
 function drawExportPaletteFooter(ctx, stats, x, y, layout, scale) {
   const swatch = 10 * scale;
   const fontSize = 10 * scale;
+  const creditFontSize = 9 * scale;
   ctx.fillStyle = '#fbf6ef';
   ctx.fillRect(0, y, ctx.canvas.width, layout.height);
   ctx.fillStyle = '#eadfd1';
@@ -138,6 +148,12 @@ function drawExportPaletteFooter(ctx, stats, x, y, layout, scale) {
     ctx.fillStyle = '#3e2f2a';
     ctx.fillText(`${label} (${entry.color.hex}) x ${entry.count}`, entryX + swatch + 6 * scale, entryY);
   }
+  const creditY = y + layout.height - layout.creditHeight / 2;
+  ctx.font = `600 ${creditFontSize}px 'Nunito', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#7f6c62';
+  ctx.fillText('made with qsovio.com', ctx.canvas.width / 2, creditY);
 }
 
 export function exportPNG(scale) {
