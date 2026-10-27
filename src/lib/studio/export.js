@@ -44,18 +44,33 @@ function drawExportCells(ctx, width, height, scale, offsetX = 0, offsetY = 0) {
 
 function drawExportGridOverlay(ctx, width, height, scale, offsetX = 0, offsetY = 0) {
   const { pw, ph, cols, rows } = state.countMetrics;
-  const op = parseInt(document.getElementById('grid-opacity').value, 10) / 100;
-  const thickness = Math.max(1, Math.round(scale));
-  const offset = Math.floor(thickness / 2);
-  ctx.fillStyle = `rgba(232,255,71,${op})`;
+  const opEl = document.getElementById('grid-opacity');
+  let op = opEl ? parseInt(opEl.value, 10) / 100 : 0.55;
+  if (!Number.isFinite(op)) op = 0.55;
+  const cellPx = Math.min(pw, ph) * scale;
+  const lineWidth = Math.max(1, Math.min(Math.round(scale), Math.floor(cellPx / 4)));
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(offsetX, offsetY, width, height);
+  ctx.clip();
+  ctx.strokeStyle = `rgba(232,255,71,${op})`;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
   for (let col = 0; col <= cols; col++) {
-    const x = offsetX + (col === cols ? width - thickness : Math.max(0, Math.round(col * pw * scale) - offset));
-    ctx.fillRect(x, offsetY, thickness, height);
+    // Keep the outer edges inside the clip so border lines aren't dropped.
+    const raw = col === cols ? width : Math.round(col * pw * scale);
+    const x = offsetX + Math.min(width - 0.5, Math.max(0.5, raw + 0.5));
+    ctx.moveTo(x, offsetY);
+    ctx.lineTo(x, offsetY + height);
   }
   for (let row = 0; row <= rows; row++) {
-    const y = offsetY + (row === rows ? height - thickness : Math.max(0, Math.round(row * ph * scale) - offset));
-    ctx.fillRect(offsetX, y, width, thickness);
+    const raw = row === rows ? height : Math.round(row * ph * scale);
+    const y = offsetY + Math.min(height - 0.5, Math.max(0.5, raw + 0.5));
+    ctx.moveTo(offsetX, y);
+    ctx.lineTo(offsetX + width, y);
   }
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawExportNumberOverlay(ctx, scale, offsetX = 0, offsetY = 0) {
@@ -142,10 +157,12 @@ export function exportPNG(scale) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const imageOffsetX = Math.round((canvas.width - imageWidth) / 2);
   drawExportCells(ctx, imageWidth, imageHeight, exportScale, imageOffsetX, 0);
-  if (document.getElementById('export-grid-overlay').checked) {
+  if (document.getElementById('export-grid-overlay')?.checked) {
     drawExportGridOverlay(ctx, imageWidth, imageHeight, exportScale, imageOffsetX, 0);
   }
-  drawExportNumberOverlay(ctx, exportScale, imageOffsetX, 0);
+  if (document.getElementById('export-count-numbers')?.checked) {
+    drawExportNumberOverlay(ctx, exportScale, imageOffsetX, 0);
+  }
   drawExportPaletteFooter(ctx, paletteStats, 0, imageHeight, footerLayout, exportScale);
   canvas.toBlob(blob => {
     if (!blob) return;

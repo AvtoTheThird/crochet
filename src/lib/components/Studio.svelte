@@ -612,6 +612,10 @@
         <input type="checkbox" id="export-grid-overlay" checked />
         Include grid overlay
       </label>
+      <label class="option-row">
+        <input type="checkbox" id="export-count-numbers" checked />
+        Show count numbers
+      </label>
       <div class="export-buttons">
         <button
           type="button"
