@@ -301,16 +301,23 @@ function getPaletteEntries() {
     .filter((e) => e.yarn && e.count > 0);
 }
 
-function findClosestPalettePair(entries) {
+function findLeastUsedEntry(entries) {
+  let least = null;
+  for (const entry of entries) {
+    if (!least || entry.count < least.count) least = entry;
+  }
+  return least;
+}
+
+function findClosestEntry(source, entries) {
   let best = null;
   let bestDist = Infinity;
-  for (let i = 0; i < entries.length; i++) {
-    for (let j = i + 1; j < entries.length; j++) {
-      const dist = yarnColorDistanceSq(entries[i].yarn, entries[j].yarn);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = [entries[i], entries[j]];
-      }
+  for (const entry of entries) {
+    if (entry.sourceHex === source.sourceHex) continue;
+    const dist = yarnColorDistanceSq(source.yarn, entry.yarn);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = entry;
     }
   }
   return best;
@@ -323,11 +330,9 @@ export function collapsePaletteTo(targetCount) {
   if (entries.length <= goal) return;
 
   while (entries.length > goal) {
-    const pair = findClosestPalettePair(entries);
-    if (!pair) break;
-    const [a, b] = pair;
-    const source = a.count <= b.count ? a : b;
-    const target = a.count <= b.count ? b : a;
+    const source = findLeastUsedEntry(entries);
+    const target = source && findClosestEntry(source, entries);
+    if (!source || !target) break;
     mergeSourceIntoInternal(source.sourceHex, target.sourceHex);
     entries = getPaletteEntries();
   }
