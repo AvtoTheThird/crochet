@@ -11,6 +11,7 @@ import {
 	togglePixelSizeLocked,
 	updatePixelSizeLockButton
 } from './grid.js';
+import { autoAlignGrid } from './grid-align.js';
 import {
 	resetGridZoom,
 	renderWorkingCanvasDisplay,
@@ -107,6 +108,7 @@ export const studioActions = {
 	resetCrop,
 	applyCrop,
 	drawGrid,
+	autoAlignGrid,
 	setStartDirection,
 	togglePixelSizeLock: togglePixelSizeLocked,
 	resetGridZoom,

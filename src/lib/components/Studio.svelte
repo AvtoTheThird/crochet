@@ -436,6 +436,20 @@
       </button>
       <div class="field-label">Pixel Height (px)</div>
       <input type="number" id="px-h" value="8" min="1" step="any" />
+      <div class="field-label">
+        Align to pixels
+        {@render helpTip(
+          "Finds the repeating pixel size and shifts the picture so grid lines sit on those edges.",
+        )}
+      </div>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        id="auto-align-grid"
+        onclick={() => a.autoAlignGrid()}
+      >
+        Auto-align grid
+      </button>
       <hr class="separator" />
       <div class="field-label">
         Pixel Count (width x height)
