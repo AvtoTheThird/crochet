@@ -38,6 +38,9 @@
 		<p>
 			<span class="mono">{data.user.email ?? data.user.username ?? data.user.id}</span>
 			· tier <span class="badge">{data.user.subscription_tier}</span>
+			{#if data.user.subscription_expires_at}
+				· expires <span class="mono">{data.user.subscription_expires_at}</span>
+			{/if}
 		</p>
 	{:else}
 		<p class="muted">User row not found</p>

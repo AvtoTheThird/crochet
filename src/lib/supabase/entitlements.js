@@ -17,10 +17,24 @@ export const LIFETIME_PROJECT_LIMIT = 20;
 
 /** @typedef {'free' | 'maker' | 'lifetime'} SubscriptionTier */
 
+/**
+ * Whether a paid tier is still within its optional admin/grant expiry window.
+ * Missing/null expires_at means permanent.
+ * @param {{ subscription_tier?: string | null, subscription_expires_at?: string | null } | null | undefined} profile
+ */
+export function isTierUnexpired(profile) {
+	const expiresAt = profile?.subscription_expires_at;
+	if (!expiresAt) return true;
+	const t = Date.parse(expiresAt);
+	if (Number.isNaN(t)) return true;
+	return t > Date.now();
+}
+
 /** @returns {SubscriptionTier} */
 export function currentTier() {
-	const tier = auth.profile?.subscription_tier;
-	if (tier === 'maker' || tier === 'lifetime') return tier;
+	const profile = auth.profile;
+	const tier = profile?.subscription_tier;
+	if ((tier === 'maker' || tier === 'lifetime') && isTierUnexpired(profile)) return tier;
 	return 'free';
 }
 

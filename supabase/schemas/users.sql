@@ -13,6 +13,8 @@ create table public.users (
 	auth_provider_token text,
 	subscription_tier text not null default 'free'
 		check (subscription_tier in ('free', 'maker', 'lifetime')),
+	-- When set, paid tier ends at this time (admin timed grants). Null = permanent.
+	subscription_expires_at timestamptz,
 	free_project_used boolean not null default false,
 	avatar_url text,
 	subscription_updated_at timestamptz,
@@ -23,6 +25,8 @@ create table public.users (
 );
 
 create index users_subscription_tier_idx on public.users (subscription_tier);
+create index users_subscription_expires_at_idx on public.users (subscription_expires_at)
+	where subscription_expires_at is not null;
 create index users_is_active_idx on public.users (is_active);
 create unique index users_username_lower_idx on public.users (lower(username)) where username is not null;
 create unique index users_email_lower_idx on public.users (lower(email)) where email is not null;

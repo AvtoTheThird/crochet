@@ -22,7 +22,9 @@ export async function load({ params }) {
 
 	const { data: user } = await sb
 		.from('users')
-		.select('id, email, username, subscription_tier, subscription_updated_at')
+		.select(
+			'id, email, username, subscription_tier, subscription_expires_at, subscription_updated_at'
+		)
 		.eq('id', payment.user_id)
 		.maybeSingle();
 

@@ -149,11 +149,13 @@ export async function processSuccessfulPayment(
 		if (updErr) throw updErr;
 	}
 
-	// Entitlement: only via service role (column grants block client updates)
+	// Entitlement: only via service role (column grants block client updates).
+	// Clear any prior admin timed expiry so a paid purchase is permanent/recurring.
 	const { error: tierErr } = await admin
 		.from('users')
 		.update({
 			subscription_tier: input.productTier,
+			subscription_expires_at: null,
 			subscription_updated_at: new Date().toISOString()
 		})
 		.eq('id', input.userId);
@@ -402,16 +404,23 @@ export async function upsertSubscription(
 
 	if (userId) {
 		if (subscriptionStatusGrantsAccess(m.status) && productTier) {
-			// Don't clobber a permanent lifetime entitlement with a lower tier.
+			// Don't clobber an unexpired lifetime entitlement with a lower tier.
 			const { data: u } = await admin
 				.from('users')
-				.select('subscription_tier')
+				.select('subscription_tier, subscription_expires_at')
 				.eq('id', userId)
 				.maybeSingle();
-			if (u?.subscription_tier !== 'lifetime') {
+			const lifetimeActive =
+				u?.subscription_tier === 'lifetime' &&
+				(!u.subscription_expires_at || Date.parse(u.subscription_expires_at) > Date.now());
+			if (!lifetimeActive) {
 				const { error } = await admin
 					.from('users')
-					.update({ subscription_tier: productTier, subscription_updated_at: new Date().toISOString() })
+					.update({
+						subscription_tier: productTier,
+						subscription_expires_at: null,
+						subscription_updated_at: new Date().toISOString()
+					})
 					.eq('id', userId);
 				if (error) throw error;
 				entitlement = 'granted';
@@ -422,13 +431,20 @@ export async function upsertSubscription(
 		} else if (subscriptionStatusRevokesAccess(m.status)) {
 			const { data: u } = await admin
 				.from('users')
-				.select('subscription_tier')
+				.select('subscription_tier, subscription_expires_at')
 				.eq('id', userId)
 				.maybeSingle();
-			if (u?.subscription_tier !== 'lifetime') {
+			const lifetimeActive =
+				u?.subscription_tier === 'lifetime' &&
+				(!u.subscription_expires_at || Date.parse(u.subscription_expires_at) > Date.now());
+			if (!lifetimeActive) {
 				const { error } = await admin
 					.from('users')
-					.update({ subscription_tier: 'free', subscription_updated_at: new Date().toISOString() })
+					.update({
+						subscription_tier: 'free',
+						subscription_expires_at: null,
+						subscription_updated_at: new Date().toISOString()
+					})
 					.eq('id', userId);
 				if (error) throw error;
 				entitlement = 'revoked';

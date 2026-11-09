@@ -227,6 +227,9 @@
 	const tierLabel = $derived(
 		tier === 'lifetime' ? 'Lifetime' : tier === 'maker' ? 'Maker' : 'Free'
 	);
+	const grantExpiresAt = $derived(
+		tier !== 'free' ? auth.profile?.subscription_expires_at ?? null : null
+	);
 
 	function fmtDate(value) {
 		if (!value) return '';
@@ -363,6 +366,9 @@
 				<p class="plan-line">
 					Current plan: <strong>{tierLabel}</strong>
 				</p>
+				{#if grantExpiresAt}
+					<p class="site-muted">Access until {fmtDate(grantExpiresAt)}.</p>
+				{/if}
 
 				{#if subLoading}
 					<p class="site-muted">Loading subscription…</p>
