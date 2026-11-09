@@ -431,6 +431,36 @@ export function drawColorPreview() {
   mainCtx.imageSmoothingEnabled = false;
   mainCtx.clearRect(0, 0, dw, dh);
   mainCtx.drawImage(cache, 0, 0, cols, rows, 0, 0, destW, destH);
+
+  if (state.showOriginalOverlay && state.currentStep === 4) {
+    const srcW = Math.min(iw, Math.max(1, Math.round(cols * pw)));
+    const srcH = Math.min(ih, Math.max(1, Math.round(rows * ph)));
+    mainCtx.save();
+    mainCtx.globalAlpha = 0.5;
+    mainCtx.drawImage(
+      state.workingCanvas,
+      0,
+      0,
+      srcW,
+      srcH,
+      0,
+      0,
+      destW,
+      destH,
+    );
+    mainCtx.restore();
+  }
+}
+
+/** Toggle the photo-over-grid blend used while correcting pixels (O key). */
+export function toggleOriginalOverlay() {
+  if (state.currentStep !== 4 || !state.countGrid.length) return;
+  state.showOriginalOverlay = !state.showOriginalOverlay;
+  scheduleColorPreviewRender();
+}
+
+export function clearOriginalOverlay() {
+  state.showOriginalOverlay = false;
 }
 
 function getCellDisplayRect(col, row, pw, ph, cols, rows, dw, dh, scaleX, scaleY) {

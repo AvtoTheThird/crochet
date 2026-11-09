@@ -603,6 +603,18 @@ a.btn { display: inline-block; text-decoration: none; }
   gap: 8px;
   line-height: 1.4;
 }
+.info-badge kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
 
 .separator { border: none; border-top: 2px dashed var(--border); }
 

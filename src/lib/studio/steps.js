@@ -3,7 +3,7 @@ import { syncPixelCountFromCellSize, drawGrid } from './grid.js';
 import { formatGridNumber } from './utils.js';
 import { renderResults } from './results.js';
 import { enableCrop, disableCrop } from './crop.js';
-import { renderPaletteUI, clearHighlight } from './color-correction.js';
+import { renderPaletteUI, clearHighlight, clearOriginalOverlay } from './color-correction.js';
 import { renderWorkingCanvasDisplay } from './viewport.js';
 import { onEnterPatternWalkStep } from './pattern-walk.js';
 import { setUiStep } from './ui.svelte.js';
@@ -22,6 +22,7 @@ export function applyStep(n) {
 	if (n < 1 || n > STEP_COUNT) return;
 
 	if (n !== 4 && n !== 5) clearHighlight();
+	if (n !== 4) clearOriginalOverlay();
 	state.currentStep = n;
 	setUiStep(n);
 	const layout = document.getElementById('main-layout');

@@ -32,6 +32,8 @@ export const state = {
 	/** source hex -> yarn id */
 	sourceToYarn: new Map(),
 	highlightedSourceHex: null,
+	/** Color-correction: hold/toggle O to blend the photo over the quantized grid. */
+	showOriginalOverlay: false,
 
 	viewPanning: null,
 	cropDragging: null,

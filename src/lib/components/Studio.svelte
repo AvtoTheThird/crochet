@@ -72,10 +72,24 @@
 
   /** @param {KeyboardEvent} e */
   function onWindowKeydown(e) {
-    if (!paintActive || e.key.toLowerCase() !== "z") return;
-    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
     const target = /** @type {HTMLElement | null} */ (e.target);
     if (target?.closest("input, textarea, [contenteditable]")) return;
+
+    if (
+      e.key.toLowerCase() === "o" &&
+      studioUi.step === 4 &&
+      studioUi.hasImage &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      e.preventDefault();
+      a.toggleOriginalOverlay();
+      return;
+    }
+
+    if (!paintActive || e.key.toLowerCase() !== "z") return;
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
     e.preventDefault();
     a.undoPaint();
   }
@@ -531,6 +545,9 @@
         <span id="palette-count" bind:this={paletteCount}>0</span> detected
         shades
         {@render helpTip("hover a color to highlight on artwork")}
+      </div>
+      <div class="info-badge">
+        Press <kbd>O</kbd> to compare with the original photo (50% overlay)
       </div>
       <div id="palette-collapse-row" class="palette-collapse-row" hidden>
         <div class="field-label">

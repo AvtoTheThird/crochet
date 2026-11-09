@@ -20,7 +20,8 @@ import {
 import {
 	enterColorCorrection,
 	resetColorCorrections,
-	collapsePaletteColors
+	collapsePaletteColors,
+	toggleOriginalOverlay
 } from './color-correction.js';
 import { goCount, toggleCountOverlay } from './count.js';
 import { exportPNG } from './export.js';
@@ -115,6 +116,7 @@ export const studioActions = {
 	goColorCorrection,
 	resetColorCorrections,
 	collapsePaletteColors,
+	toggleOriginalOverlay,
 	goCount,
 	toggleCountOverlay,
 	copyCSV,
