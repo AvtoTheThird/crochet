@@ -765,6 +765,38 @@
             ↶ Undo
           </button>
         </div>
+        <div class="field-label">
+          Mirror
+          {@render helpTip(
+            "While brushing, copy strokes across the vertical center. Left → Right mirrors only what you paint on the left half; Right → Left mirrors only the right half. Click the active button again to turn mirroring off.",
+          )}
+        </div>
+        <div class="row paint-tools" role="group" aria-label="Paint mirror">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            class:active={studioUi.paintMirror === "ltr"}
+            aria-pressed={studioUi.paintMirror === "ltr"}
+            title="Mirror strokes from the left half onto the right"
+            onclick={() =>
+              (studioUi.paintMirror =
+                studioUi.paintMirror === "ltr" ? null : "ltr")}
+          >
+            Left → Right
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            class:active={studioUi.paintMirror === "rtl"}
+            aria-pressed={studioUi.paintMirror === "rtl"}
+            title="Mirror strokes from the right half onto the left"
+            onclick={() =>
+              (studioUi.paintMirror =
+                studioUi.paintMirror === "rtl" ? null : "rtl")}
+          >
+            Right → Left
+          </button>
+        </div>
         <div class="field-label">Brush color</div>
         <label class="paint-brush">
           <input

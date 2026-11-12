@@ -11,6 +11,12 @@ export const studioUi = $state({
 	paintOpen: false,
 	/** @type {'brush' | 'picker'} */
 	paintTool: 'brush',
+	/**
+	 * Live mirror while brushing. `ltr` copies left-half strokes to the right;
+	 * `rtl` copies right-half strokes to the left; `null` is off.
+	 * @type {null | 'ltr' | 'rtl'}
+	 */
+	paintMirror: null,
 	/** Paint strokes available to undo. */
 	undoCount: 0,
 	paintColor: '#e8ff47',

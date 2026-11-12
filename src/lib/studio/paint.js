@@ -79,7 +79,7 @@ function resolvePaintSource() {
   return key;
 }
 
-function paintCell(col, row, sourceHex) {
+function paintCellOnce(col, row, sourceHex) {
   const cell = state.countGrid[row]?.[col];
   if (!cell || cell.sourceHex === sourceHex) return false;
   const key = `${row},${col}`;
@@ -87,6 +87,27 @@ function paintCell(col, row, sourceHex) {
   cell.sourceHex = sourceHex;
   syncCellFromYarn(cell);
   return true;
+}
+
+/**
+ * Paint a cell, and when mirror mode is on, paint its horizontal twin if the
+ * stroke is on the source side of the artwork.
+ */
+function paintCell(col, row, sourceHex) {
+  let changed = paintCellOnce(col, row, sourceHex);
+  const mode = studioUi.paintMirror;
+  const cols = state.countMetrics?.cols;
+  if (!mode || !cols) return changed;
+
+  const mirrorCol = cols - 1 - col;
+  if (mirrorCol === col) return changed;
+
+  const onLeft = col < cols / 2;
+  const onRight = col > (cols - 1) / 2;
+  if ((mode === "ltr" && onLeft) || (mode === "rtl" && onRight)) {
+    if (paintCellOnce(mirrorCol, row, sourceHex)) changed = true;
+  }
+  return changed;
 }
 
 /** Paint every cell on the line between two cells so fast drags leave no gaps. */
