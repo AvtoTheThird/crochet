@@ -127,7 +127,7 @@ function directionFromDb(dir) {
 }
 
 function buildPaletteJson() {
-	/** @type {Map<string, {hex:string,r:number,g:number,b:number,count:number,yarn_label:string}>} */
+	/** @type {Map<string, {hex:string,r:number,g:number,b:number,count:number,yarn_label:string,locked:boolean}>} */
 	const map = new Map();
 	for (const row of state.countGrid) {
 		for (const cell of row) {
@@ -137,13 +137,16 @@ function buildPaletteJson() {
 			if (existing) {
 				existing.count += 1;
 			} else {
+				const yarnId = cell.yarnId || state.sourceToYarn.get(cell.sourceHex);
+				const yarn = yarnId ? state.yarnColors.get(yarnId) : null;
 				map.set(key, {
 					hex: cell.hex,
 					r: cell.r,
 					g: cell.g,
 					b: cell.b,
 					count: 1,
-					yarn_label: (cell.name || cell.hex).trim() || cell.hex
+					yarn_label: (cell.name || cell.hex).trim() || cell.hex,
+					locked: !!yarn?.locked
 				});
 			}
 		}
@@ -180,7 +183,8 @@ function applyPaletteToMaps(palette) {
 			g: entry.g ?? 0,
 			b: entry.b ?? 0,
 			hex,
-			name: entry.yarn_label || hex
+			name: entry.yarn_label || hex,
+			locked: !!entry.locked
 		};
 		state.yarnColors.set(id, yarn);
 		state.sourceToYarn.set(hex, id);
@@ -299,7 +303,10 @@ function projectSignature() {
 		dir: state.startDirection,
 		step: Math.max(2, state.currentStep),
 		done: state.completedRows || [],
-		yarn: [...state.sourceToYarn.entries()].map(([src, id]) => [src, state.yarnColors.get(id)?.hex]),
+		yarn: [...state.sourceToYarn.entries()].map(([src, id]) => {
+			const yarn = state.yarnColors.get(id);
+			return [src, yarn?.hex, !!yarn?.locked];
+		}),
 		rev: state.gridRevision,
 		counts: buildCountResultsJson()
 	});

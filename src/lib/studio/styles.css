@@ -659,6 +659,39 @@ a.btn { display: inline-block; text-decoration: none; }
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .palette-item-top { display: flex; align-items: center; gap: 10px; }
+.palette-item.is-locked {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent-soft));
+}
+.palette-lock-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.palette-lock-btn:hover,
+.palette-lock-btn:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.palette-lock-btn.is-locked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.palette-merge-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .palette-swatch {
   width: 30px; height: 30px;
   border-radius: 50%;

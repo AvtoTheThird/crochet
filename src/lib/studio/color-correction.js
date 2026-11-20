@@ -10,9 +10,34 @@ import { showAlert } from "$lib/ui/dialogs.svelte.js";
 export function createYarn(r, g, b, name = "") {
   const hex = rgbToHex(r, g, b);
   const id = nextId();
-  const yarn = { id, r, g, b, hex, name: name || hex };
+  const yarn = { id, r, g, b, hex, name: name || hex, locked: false };
   state.yarnColors.set(id, yarn);
   return yarn;
+}
+
+function yarnForSource(sourceHex) {
+  const yarnId = state.sourceToYarn.get(sourceHex);
+  return yarnId ? state.yarnColors.get(yarnId) : null;
+}
+
+export function isSourceLocked(sourceHex) {
+  return !!yarnForSource(sourceHex)?.locked;
+}
+
+export function countLockedSources() {
+  let n = 0;
+  for (const sourceHex of state.sourceToYarn.keys()) {
+    if (countCellsForSource(sourceHex) <= 0) continue;
+    if (isSourceLocked(sourceHex)) n++;
+  }
+  return n;
+}
+
+export function toggleSourceLock(sourceHex) {
+  const yarn = yarnForSource(sourceHex);
+  if (!yarn) return;
+  yarn.locked = !yarn.locked;
+  renderPaletteUI();
 }
 
 function sourcesForYarn(yarnId) {
@@ -215,6 +240,7 @@ function ensureUniqueYarnForSource(sourceHex) {
 
   const old = state.yarnColors.get(yarnId);
   const yarn = createYarn(old.r, old.g, old.b, old.name);
+  yarn.locked = !!old.locked;
   state.sourceToYarn.set(sourceHex, yarn.id);
   return yarn;
 }
@@ -258,6 +284,7 @@ function mergeSourceIntoInternal(sourceHex, targetSourceHex) {
   if (!targetSourceHex || sourceHex === targetSourceHex) return false;
   if (!state.sourceToYarn.has(targetSourceHex)) return false;
   if (!state.sourceToYarn.has(sourceHex)) return false;
+  if (isSourceLocked(sourceHex)) return false;
   clearPaintHistory();
 
   for (const row of state.countGrid) {
@@ -276,6 +303,14 @@ function mergeSourceIntoInternal(sourceHex, targetSourceHex) {
 }
 
 export function mergeSourceInto(sourceHex, targetSourceHex) {
+  if (isSourceLocked(sourceHex)) {
+    showAlert({
+      title: "Color is locked",
+      message: "Unlock this shade before merging it into another color.",
+      tone: "warning",
+    });
+    return;
+  }
   if (!mergeSourceIntoInternal(sourceHex, targetSourceHex)) return;
   renderPaletteUI();
   renderWorkingCanvasDisplay();
@@ -325,12 +360,14 @@ function findClosestEntry(source, entries) {
 
 export function collapsePaletteTo(targetCount) {
   if (!state.countGrid.length) return;
-  const goal = Math.max(2, Math.floor(targetCount));
   let entries = getPaletteEntries();
+  const lockedCount = entries.filter((e) => e.yarn.locked).length;
+  const goal = Math.max(2, lockedCount, Math.floor(targetCount));
   if (entries.length <= goal) return;
 
   while (entries.length > goal) {
-    const source = findLeastUsedEntry(entries);
+    const unlocked = entries.filter((e) => !e.yarn.locked);
+    const source = findLeastUsedEntry(unlocked);
     const target = source && findClosestEntry(source, entries);
     if (!source || !target) break;
     mergeSourceIntoInternal(source.sourceHex, target.sourceHex);
@@ -348,16 +385,18 @@ function updateCollapseControls(colorCount) {
   const row = document.getElementById("palette-collapse-row");
   const input = document.getElementById("palette-target-count");
   if (!row || !input) return;
-  if (colorCount <= 2) {
+  const lockedCount = countLockedSources();
+  const min = Math.max(2, lockedCount);
+  if (colorCount <= min) {
     row.hidden = true;
     return;
   }
   row.hidden = false;
   input.max = String(colorCount - 1);
-  input.min = "2";
+  input.min = String(min);
   const current = parseInt(input.value, 10);
-  if (!Number.isFinite(current) || current >= colorCount || current < 2) {
-    input.value = String(Math.max(2, colorCount - 1));
+  if (!Number.isFinite(current) || current >= colorCount || current < min) {
+    input.value = String(Math.max(min, colorCount - 1));
   }
 }
 
@@ -365,10 +404,18 @@ export function collapsePaletteColors() {
   const input = document.getElementById("palette-target-count");
   const target = parseInt(input?.value, 10);
   const count = parseInt(dom.paletteCount?.textContent || "0", 10);
-  if (!Number.isFinite(target) || target < 2) {
+  const lockedCount = countLockedSources();
+  const min = Math.max(2, lockedCount);
+  if (!Number.isFinite(target) || target < min) {
     showAlert({
-      title: "Pick at least 2 colors",
-      message: "A tapestry needs two or more yarn colors to work with.",
+      title:
+        lockedCount > 0
+          ? `Need at least ${min} colors`
+          : "Pick at least 2 colors",
+      message:
+        lockedCount > 0
+          ? `${lockedCount} shade${lockedCount === 1 ? " is" : "s are"} locked, so the palette can’t go below ${min}.`
+          : "A tapestry needs two or more yarn colors to work with.",
       tone: "warning",
     });
     return;
@@ -631,8 +678,9 @@ export function renderPaletteUI() {
 
   for (const entry of entries) {
     const { sourceHex, yarn, count } = entry;
+    const locked = !!yarn.locked;
     const item = document.createElement("div");
-    item.className = "palette-item";
+    item.className = "palette-item" + (locked ? " is-locked" : "");
     item.dataset.sourceHex = sourceHex;
 
     item.innerHTML = `
@@ -642,12 +690,18 @@ export function renderPaletteUI() {
           <strong>${sourceHex}</strong><br>
           ${count} cell${count === 1 ? "" : "s"} · now <span style="color:${yarn.hex}">${yarn.hex}</span>
         </div>
+        <button
+          type="button"
+          class="palette-lock-btn${locked ? " is-locked" : ""}"
+          aria-pressed="${locked ? "true" : "false"}"
+          title="${locked ? "Unlock color (keeps it out of Collapse)" : "Lock color so Collapse can’t remove it"}"
+        >${locked ? "🔒" : "🔓"}</button>
       </div>
       <input class="palette-name" type="text" placeholder="Yarn name (e.g. pink)" value="${yarn.name === yarn.hex ? "" : yarn.name}">
       <div class="palette-actions">
         <input type="color" class="palette-picker" value="${yarn.hex}" title="Replace with this color">
         <div class="palette-merge">
-          <button type="button" class="palette-merge-trigger">Merge into…</button>
+          <button type="button" class="palette-merge-trigger" ${locked ? "disabled" : ""}>${locked ? "Locked" : "Merge into…"}</button>
           <div class="palette-merge-menu" hidden></div>
         </div>
       </div>
@@ -656,8 +710,14 @@ export function renderPaletteUI() {
     const swatch = item.querySelector(".palette-swatch");
     const nameInput = item.querySelector(".palette-name");
     const picker = item.querySelector(".palette-picker");
+    const lockBtn = item.querySelector(".palette-lock-btn");
     const mergeTrigger = item.querySelector(".palette-merge-trigger");
     const mergeMenu = item.querySelector(".palette-merge-menu");
+
+    lockBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSourceLock(sourceHex);
+    });
 
     swatch.addEventListener("mouseenter", () =>
       setHighlightedSource(sourceHex),
@@ -695,6 +755,7 @@ export function renderPaletteUI() {
     });
     mergeTrigger.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (locked || mergeTrigger.disabled) return;
       const willOpen = mergeMenu.hidden;
       closeAllMergeMenus();
       mergeMenu.hidden = !willOpen;

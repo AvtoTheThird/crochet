@@ -553,7 +553,7 @@
         <div class="field-label">
           Reduce colors
           {@render helpTip(
-            "Repeatedly merges the two closest shades until you reach the target count. The rarer shade is merged into the more common one.",
+            "Merges the least-used unlocked shade into its closest neighbor until you reach the target count. Locked colors are kept, and the target can’t go below the number of locked shades.",
           )}
         </div>
         <div class="row">
