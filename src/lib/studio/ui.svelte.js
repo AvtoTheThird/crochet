@@ -19,6 +19,8 @@ export const studioUi = $state({
 	paintMirror: null,
 	/** Paint strokes available to undo. */
 	undoCount: 0,
+	/** Brush footprint in cells (1 = single cell). */
+	paintBrushSize: 1,
 	paintColor: '#e8ff47',
 	/** Palette entry (source hex) the brush is bound to; null means "use paintColor". */
 	paintSource: /** @type {string | null} */ (null),

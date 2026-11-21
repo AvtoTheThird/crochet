@@ -797,6 +797,25 @@
             Right → Left
           </button>
         </div>
+        <div class="field-label">
+          Brush size
+          {@render helpTip(
+            "How many cells wide the brush paints. 1 is a single stitch; larger sizes paint a square block.",
+          )}
+        </div>
+        <div class="tolerance-row paint-brush-size">
+          <input
+            type="range"
+            min="1"
+            max="8"
+            step="1"
+            value={studioUi.paintBrushSize}
+            aria-label="Brush size in cells"
+            oninput={(e) =>
+              (studioUi.paintBrushSize = parseInt(e.currentTarget.value, 10) || 1)}
+          />
+          <span>{studioUi.paintBrushSize}</span>
+        </div>
         <div class="field-label">Brush color</div>
         <label class="paint-brush">
           <input

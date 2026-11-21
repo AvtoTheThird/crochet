@@ -110,6 +110,26 @@ function paintCell(col, row, sourceHex) {
   return changed;
 }
 
+function brushSize() {
+  const n = Math.round(Number(studioUi.paintBrushSize));
+  return Number.isFinite(n) ? Math.max(1, Math.min(8, n)) : 1;
+}
+
+/** Paint an N×N square stamp centered on the cell (odd sizes sit on center). */
+function paintStamp(col, row, sourceHex) {
+  const size = brushSize();
+  const offset = Math.floor((size - 1) / 2);
+  let changed = false;
+  for (let dr = 0; dr < size; dr++) {
+    for (let dc = 0; dc < size; dc++) {
+      if (paintCell(col + dc - offset, row + dr - offset, sourceHex)) {
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 /** Paint every cell on the line between two cells so fast drags leave no gaps. */
 function paintLine(from, to, sourceHex) {
   let { col: x0, row: y0 } = from;
@@ -121,7 +141,7 @@ function paintLine(from, to, sourceHex) {
   let err = dx + dy;
   let changed = false;
   for (;;) {
-    if (paintCell(x0, y0, sourceHex)) changed = true;
+    if (paintStamp(x0, y0, sourceHex)) changed = true;
     if (x0 === x1 && y0 === y1) break;
     const e2 = 2 * err;
     if (e2 >= dy) {
