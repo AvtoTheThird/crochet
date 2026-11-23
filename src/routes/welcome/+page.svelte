@@ -1,8 +1,14 @@
 <script>
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import SiteHeader from '$lib/components/site/SiteHeader.svelte';
 	import SiteFooter from '$lib/components/site/SiteFooter.svelte';
+	import { reportSubscribeConversion } from '$lib/analytics/ads-conversion.js';
 	import '$lib/styles/site.css';
+
+	onMount(() => {
+		reportSubscribeConversion();
+	});
 </script>
 
 <svelte:head>

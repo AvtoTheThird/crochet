@@ -14,6 +14,7 @@
  */
 import { initializePaddle } from '@paddle/paddle-js';
 import { PUBLIC_PADDLE_ENVIRONMENT, PUBLIC_PADDLE_CLIENT_TOKEN } from '$env/static/public';
+import { rememberCheckoutConversion } from '$lib/analytics/ads-conversion.js';
 
 /** @type {Promise<import('@paddle/paddle-js').Paddle | undefined> | null} */
 let paddlePromise = null;
@@ -85,7 +86,10 @@ export function getPaddle(options = {}) {
 	/** @type {import('@paddle/paddle-js').InitializePaddleOptions} */
 	const initOptions = {
 		environment: /** @type {'sandbox' | 'production'} */ (environment),
-		token
+		token,
+		eventCallback: (event) => {
+			if (event.name === 'checkout.completed') rememberCheckoutConversion(event.data);
+		}
 	};
 	// Paddle Retain: identify the signed-in customer by their Paddle customer id.
 	if (pwCustomerId) {
